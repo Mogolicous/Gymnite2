@@ -210,9 +210,19 @@ async def upload_receipt(file: UploadFile = File(...), user: dict = Depends(get_
 # ----------------- Admin -----------------
 @api_router.get("/admin/users", response_model=List[UserOut])
 async def list_users(admin: dict = Depends(require_admin)):
-    cursor = db.users.find({"role": {"$ne": "admin"}}, {"_id": 0, "password_hash": 0, "receipt_image": 0})
-    users = await cursor.to_list(1000)
-    return [serialize_user(u) for u in users]
+    pipeline = [
+        {"$match": {"role": {"$ne": "admin"}}},
+        {"$addFields": {"has_receipt_computed": {"$cond": [{"$ifNull": ["$receipt_image", False]}, True, False]}}},
+        {"$project": {"_id": 0, "password_hash": 0, "receipt_image": 0}},
+        {"$sort": {"created_at": -1}},
+    ]
+    users = await db.users.aggregate(pipeline).to_list(1000)
+    result = []
+    for u in users:
+        out = serialize_user(u)
+        out["has_receipt"] = bool(u.get("has_receipt_computed"))
+        result.append(out)
+    return result
 
 @api_router.get("/admin/users/{user_id}/receipt")
 async def get_receipt(user_id: str, admin: dict = Depends(require_admin)):
