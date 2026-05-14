@@ -1,0 +1,135 @@
+{
+  "project_name": "GymNite",
+  "theme": "dark",
+  "archetype": "Hybrid: Performance Pro (Dark) + Electric Neon (Accent)",
+  "design_philosophy": "Modern Minimalism / Professional Dark Mode. Deep, matte black interfaces grounded with subtle, elegant Neon Purple glow effects. The neon acts as a kinetic trigger for conversion and active states, never overwhelming the content. High contrast, generous whitespace, and strictly rounded borders.",
+  "colors": {
+    "background": {
+      "main": "#050505",
+      "surface": "#0F0F11",
+      "surface_elevated": "#18181B"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#A1A1AA",
+      "muted": "#71717A"
+    },
+    "accent": {
+      "primary": "#A855F7",
+      "primary_hover": "#C084FC",
+      "primary_glow": "rgba(168, 85, 247, 0.4)",
+      "success": "#22C55E",
+      "warning": "#EAB308"
+    },
+    "border": {
+      "default": "#27272A",
+      "focus": "#A855F7"
+    }
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Outfit, sans-serif",
+      "body": "Inter, sans-serif"
+    },
+    "rules": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white",
+      "h2": "text-3xl sm:text-4xl font-semibold tracking-tight text-white",
+      "h3": "text-xl sm:text-2xl font-medium text-white",
+      "body": "text-base text-zinc-400 leading-relaxed",
+      "label": "text-xs font-semibold uppercase tracking-widest text-zinc-500"
+    }
+  },
+  "layout_and_spacing": {
+    "philosophy": "Generous Spacing Philosophy. Use large padding (p-12 to p-24) to create a premium, uncrowded feel.",
+    "container": "max-w-7xl mx-auto px-6",
+    "border_radius": "rounded-2xl for large cards, rounded-xl for standard components, rounded-full for buttons/badges",
+    "landing_grid": "Bento Grid Mode A (Tetris) - Asymmetrical, gap-8 to gap-12",
+    "dashboard_grid": "Control Room Grid Mode B - Dense but readable, gap-6"
+  },
+  "components": {
+    "button": {
+      "primary": "bg-purple-600 hover:bg-purple-500 text-white rounded-full px-8 py-3 font-medium transition-all duration-300 shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.6)]",
+      "secondary": "bg-zinc-900 border border-zinc-800 hover:border-purple-500/50 text-white rounded-full px-8 py-3 font-medium transition-all duration-300",
+      "ghost": "text-zinc-400 hover:text-white transition-colors"
+    },
+    "card": {
+      "default": "bg-zinc-900/50 border border-zinc-800/50 backdrop-blur-xl rounded-2xl p-8 transition-all hover:border-zinc-700",
+      "glow_border": "relative before:absolute before:inset-0 before:p-[1px] before:bg-gradient-to-b before:from-purple-500/30 before:to-transparent before:rounded-2xl before:-z-10"
+    },
+    "glassmorphism": {
+      "header": "bg-[#050505]/80 backdrop-blur-2xl border-b border-white/5",
+      "modal": "bg-zinc-950/90 backdrop-blur-xl border border-white/10"
+    },
+    "status_badges": {
+      "subscribed": "bg-purple-500/10 text-purple-400 border border-purple-500/20 px-3 py-1 rounded-full text-xs font-medium",
+      "pending": "bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1 rounded-full text-xs font-medium",
+      "unsubscribed": "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 px-3 py-1 rounded-full text-xs font-medium"
+    }
+  },
+  "motion_and_interactions": {
+    "carousel": "Use Swiper.js or Framer Motion for premium slide transitions (fade + slight scale in). Include progress indicators.",
+    "hover_states": "Subtle Y-axis translation (-translate-y-1) for cards. Glow intensification for primary buttons.",
+    "page_transitions": "Fade in and slight upward translation (opacity 0 -> 1, y: 20 -> 0) on mount."
+  },
+  "media": {
+    "images": [
+      {
+        "id": "hero_main",
+        "url": "https://static.prod-images.emergentagent.com/jobs/fcdd5517-8b8e-488f-a645-e0550fa20218/images/391b0d0d391001e271f94ced70da98ed40abe1e2c5e21fc3510257b12777859e.png",
+        "category": "hero_background",
+        "description": "Premium 3D generated neon purple gym environment. Ideal for the main landing page hero."
+      },
+      {
+        "id": "carousel_1",
+        "url": "https://images.unsplash.com/photo-1672344048213-76b6e77304bd?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "category": "carousel_slide",
+        "description": "Dark aesthetic dumbbell. Use for Carousel slide 1."
+      },
+      {
+        "id": "carousel_2",
+        "url": "https://images.unsplash.com/photo-1605296867304-46d5465a13f1?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "category": "carousel_slide",
+        "description": "Athletic person training dark moody. Use for Carousel slide 2."
+      },
+      {
+        "id": "carousel_3",
+        "url": "https://images.unsplash.com/photo-1674834727206-4bc272bfd8da?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "category": "carousel_slide",
+        "description": "Gym with exercise equipment at night. Use for Carousel slide 3."
+      },
+      {
+        "id": "about_us",
+        "url": "https://images.unsplash.com/photo-1534258936925-c58bed479fcb?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "category": "section_background",
+        "description": "Two people working out. Use for About Us section."
+      }
+    ],
+    "icons": {
+      "library": "lucide-react",
+      "style": "stroke-width: 1.5, sleek and modern"
+    }
+  },
+  "ui_sections": {
+    "landing": {
+      "hero": "Full screen (min-h-[90vh]). Centered or left-aligned bold text. Carousel background with overlay (bg-black/60) to ensure text legibility. Prominent purple neon 'Registrarme' CTA.",
+      "benefits": "Bento Grid displaying high-contrast icons and short text. Subtle borders with hover glow effects.",
+      "about": "Asymmetrical layout. Large image alongside typography-heavy mission statement.",
+      "auth_form": "Minimalist card layout. Inputs with floating labels or very clean placeholders. Subdued borders that glow purple on focus (`focus:border-purple-500 focus:ring-purple-500/20`)."
+    },
+    "dashboard": {
+      "layout": "Sidebar navigation (darker than main bg) + Top header. Main content area with strict grid.",
+      "kanban_table": "List/Table view of users. Clean rows with hover states (`hover:bg-zinc-900/50`). Uses status pills.",
+      "receipt_modal": "Glassmorphism backdrop. Image scales cleanly within constraints (max-h-[70vh]). Actions: 'Aprobar' (Purple CTA) and 'Cerrar'."
+    }
+  },
+  "testing": {
+    "attributes": "All interactive elements MUST include `data-testid` in kebab-case."
+  },
+  "instructions_to_main_agent": [
+    "Use Tailwind CSS for all styling. Rely on arbitrary values for custom shadows or blur if necessary.",
+    "For the Landing Page Carousel, implement a premium slider (e.g., Swiper with fade effect or Framer Motion AnimatePresence).",
+    "Use Shadcn UI for forms, tables, and modals in the Dashboard. Customize Shadcn borders and radii to match these guidelines.",
+    "Ensure total compliance with accessibility contrast ratios, particularly against the dark backgrounds. Use text-white for key information and text-zinc-400 for secondary.",
+    "Inject the provided Unsplash/Generated images as backgrounds and content."
+  ]
+}
