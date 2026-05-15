@@ -8,6 +8,7 @@ import Register from "@/pages/Register";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
+import WhatsAppFab from "@/components/WhatsAppFab";
 import { Toaster } from "sonner";
 
 function GuestOnly({ children }) {
@@ -64,6 +65,7 @@ function App() {
       <BrowserRouter>
         <AuthProvider>
           <AppRoutes />
+          <WhatsAppFab />
           <Toaster
             theme="dark"
             position="top-right"

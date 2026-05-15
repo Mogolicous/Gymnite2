@@ -1,9 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, Sparkles, Dumbbell, Layout, Palette, Users, Activity, Brain, Clock, Sunrise, Moon, Calendar } from "lucide-react";
+import { ArrowRight, Sparkles, Dumbbell, Layout, Palette, Users, Activity, Brain, Sunrise, Moon, MessageCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import HeroCarousel from "@/components/HeroCarousel";
+import { buildWhatsAppLink } from "@/lib/contact";
 
 const BENEFITS = [
   {
@@ -107,8 +108,8 @@ export default function Landing() {
               </div>
               <div className="hidden sm:block border-l border-zinc-800" />
               <div data-testid="hero-stat-2">
-                <div className="text-3xl font-bold text-white">5AM – 22:30</div>
-                <div className="text-zinc-500">Horarios user-friendly</div>
+                <div className="text-3xl font-bold text-white">Horarios</div>
+                <div className="text-zinc-500">User-friendly</div>
               </div>
             </div>
           </motion.div>
@@ -180,27 +181,9 @@ export default function Landing() {
                 <span className="text-purple-400">puedas</span>.
               </h2>
               <p className="mt-6 text-zinc-400 leading-relaxed">
-                Pensados para que entrenes sin pretextos: mañana, tarde y
-                sábados completos.
+                Pensados para que entrenes sin pretextos. Reserva tu horario
+                directamente por WhatsApp.
               </p>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: 0.15 }}
-                className="mt-8 inline-flex items-center gap-3 gn-card px-5 py-4"
-                data-testid="schedule-saturday"
-              >
-                <Calendar className="h-4 w-4 text-purple-300" />
-                <div>
-                  <div className="text-[10px] uppercase tracking-widest text-zinc-500">
-                    Sábados
-                  </div>
-                  <div className="text-sm text-zinc-100 font-medium">
-                    7:00 AM – 1:00 PM
-                  </div>
-                </div>
-              </motion.div>
             </div>
 
             <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -222,11 +205,14 @@ export default function Landing() {
                       </div>
                       <h3 className="text-xl font-semibold">{s.title}</h3>
                     </div>
-                    <ul className="space-y-4">
+                    <ul className="space-y-3 mb-5">
                       {s.slots.map((slot) => {
                         const SlotIcon = slot.icon;
                         return (
-                          <li key={slot.label} className="flex items-center justify-between gap-4 border-b border-zinc-800/60 pb-3 last:border-0 last:pb-0">
+                          <li
+                            key={slot.label}
+                            className="flex items-center justify-between gap-4 border-b border-zinc-800/60 pb-3 last:border-0 last:pb-0"
+                          >
                             <div className="flex items-center gap-3 text-zinc-300">
                               <SlotIcon className="h-4 w-4 text-purple-300/80" />
                               <span className="text-sm">{slot.label}</span>
@@ -238,6 +224,18 @@ export default function Landing() {
                         );
                       })}
                     </ul>
+                    <a
+                      href={buildWhatsAppLink(
+                        `Hola, quiero reservar un horario de ${s.title}. ¿Me podrías dar más información?`
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full border border-purple-500/30 hover:border-purple-400/60 bg-purple-500/10 hover:bg-purple-500/15 px-4 py-2 text-sm text-purple-200 hover:text-white transition-all"
+                      data-testid={`reservar-${s.title.toLowerCase()}-btn`}
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Reservar por WhatsApp
+                    </a>
                   </motion.div>
                 );
               })}
@@ -341,11 +339,11 @@ export default function Landing() {
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
               Tu mejor versión
               <br />
-              empieza <span className="text-purple-400 gn-glow-text">esta noche</span>.
+              empieza <span className="text-purple-400 gn-glow-text">aquí</span>.
             </h2>
             <p className="text-zinc-400 max-w-xl mx-auto mb-10 leading-relaxed">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-              eiusmod tempor incididunt ut labore et dolore magna aliqua.
+              Combate, fuerza y una comunidad que te empuja. Da el primer paso
+              hoy y entrena con disciplina, sin pretextos.
             </p>
             <Link
               to="/register"
