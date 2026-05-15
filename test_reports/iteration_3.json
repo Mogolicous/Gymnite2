@@ -1,0 +1,54 @@
+{
+  "summary": "Iteration 3 testing complete. Backend: 39/39 pytest pass — receipts/upload now accepts plan_months form field, validates {1,3,6,12}, persists requested_plan_months, /auth/me + /admin/users include the new field, and prior tests still green. Frontend Dashboard flow fully validated: 4 plan cards (1/3/6/12) render with correct testids, 6m has 'Popular' ribbon, clicking card opens payment-section, bank info shows the 5 required fields with correct hardcoded values, amount mirrors the selected price (3m→$69, 6m→$129), 'Cambiar plan' returns to plans-section, JPG upload sends plan_months=3 and the dashboard flips to 'Pendiente de Verificación' showing 'Plan solicitado: 3 meses · $69'. Admin approval modal is BROKEN by a missing import (`planByMonths is not defined` runtime error) — the entire ApprovalModal crashes when an admin clicks Aprobar, blocking acceptance criterion #9 (slider default to user's requested plan, modal-requested-plan chip, approve flow).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/admin/users/{id}/reject", "issue": "Reject does NOT clear requested_plan_months. After reject the user is back to no_subscribed but a stale requested_plan_months value persists. If the user re-uploads without selecting a plan, the admin modal will open with the stale default. Recommend adding requested_plan_months: None to the $set in reject_user."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Admin.js → ApprovalModal",
+        "issue": "`planByMonths` is referenced at lines 73-74 but is NOT imported from '@/lib/plans'. Causes uncaught ReferenceError 'planByMonths is not defined' the moment the modal mounts (right after admin clicks any approve-btn-{id}). Modal never renders, the page shows the dev-overlay error screen, and the admin cannot approve users whose receipt was uploaded with plan_months. This completely blocks iteration 3 acceptance criterion #9.",
+        "selector": "[data-testid='receipt-modal']",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard payment-section", "issues": ["CopyableField text content concatenates label + value + 'Copiar' (e.g. 'BancoBanco PichinchaCopiar') with no separating space — fine visually because they are on different rows, but accessibility tools / screen readers will read it as one run-on string. Consider aria-label='Banco: Banco Pichincha' on the copy button instead of inline text."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_gymnite.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "CRITICAL: In /app/frontend/src/pages/Admin.js add `import { planByMonths } from '@/lib/plans';` (or `PLAN_TIERS, planByMonths` if PLAN_TIERS is also needed). Without this fix the admin cannot open the approval modal at all.",
+    "Optional: clear `requested_plan_months` (set to null) in reject_user $set so a rejected user starting over does not leak the previous tier selection into the next admin modal default.",
+    "Optional: add aria-label to CopyableField so screen readers announce 'Banco: Banco Pichincha' instead of 'BancoBanco PichinchaCopiar'."
+  ],
+  "critical_code_review_comments": [
+    "Admin.js missing import of planByMonths — must be the very first thing fixed; trivially reproduces by clicking any Aprobar button.",
+    "PLAN_OPTIONS = [1,3,6,12] in Admin.js duplicates the months from PLAN_TIERS in /lib/plans.js. Derive it: `const PLAN_OPTIONS = PLAN_TIERS.map(t => t.months);` to keep a single source of truth.",
+    "server.py upload_receipt and create_manual_user duplicate the same JPG/size validators (5MB, <100 bytes, image/jpeg). Extract a `validate_jpg_upload(file)` helper.",
+    "ApproveIn could use `Literal[1,3,6,12]` (Pydantic 2) so the manual `if plan_months not in (1,3,6,12)` check inside approve_user becomes redundant and bad values fail with 422 at parse time consistently.",
+    "Dashboard.js uses `setUser(data)` after upload — make sure AuthContext re-fetches /auth/me on next mount otherwise the requested_plan_months would not appear if the user reloads the page (it does work today because /auth/me is called on mount).",
+    "server.py is at ~425 lines; consider splitting into routers (auth.py, admin.py, receipts.py) before the next iteration.",
+    "Cookies are SameSite=None; Secure=True hardcoded — fine on the HTTPS preview, will silently fail on plain http://localhost during local dev (already noted in iter2)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_gymnite.py (added 9 iteration-3 tests for receipts/upload plan_months handling and requested_plan_months persistence)"
+  ],
+  "success_rate": {
+    "backend": "100% (39/39 pytest)",
+    "frontend": "Dashboard flow 100% (4 plan cards, popular ribbon, payment-section transition, bank info, amount per plan, Cambiar plan back, JPG upload + plan_months sent, status flip with 'Plan solicitado: 3 meses · $69'). Admin flow 0% — ApprovalModal crashes on mount due to missing planByMonths import."
+  },
+  "test_credentials": "Admin admin@gymnite.com / 12345 (auto-seeded). Iter3 created several TEST_iter3_* and test_iter3_ui_* users.",
+  "seed_data_creation": "Multiple TEST_iter3_* users via /api/auth/register; iter3 pytest creates one user per parametrized plan_months and uploads receipts with each plan. One UI test_iter3_ui_<ts>@example.com user uploaded a JPG with plan_months=3 (status=pending, requested_plan_months=3) — left in DB to help main agent reproduce the admin modal crash.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iter3 backend acceptance criteria pass. Frontend dashboard plan→payment→upload flow is fully verified. The ONLY remaining blocker is the missing `planByMonths` import in /app/frontend/src/pages/Admin.js (line 73-74 use it). After main agent adds the import, retest acceptance criterion #9 only: open approval modal for user with requested_plan_months=3 → plan-current-value shows '3', modal-requested-plan chip visible, approve → row-status shows 'Suscrito' and row-plan shows '3 meses · vence ...'. Run backend regression with: REACT_APP_BACKEND_URL=https://neon-members-1.preview.emergentagent.com python -m pytest backend/tests/test_gymnite.py -v",
+  "rca of the issue": "Reproduction: 1) Login as admin@gymnite.com/12345 → /admin. 2) Pick any user with has_receipt=true and click [data-testid^=approve-btn-]. 3) React renders <ApprovalModal>; on line 73 it calls `planByMonths(user?.requested_plan_months)`, but `planByMonths` is never imported. Browser throws ReferenceError → React error overlay covers the page; the receipt-modal element is never mounted. Mitigation: add `import { planByMonths } from '@/lib/plans';` at the top of Admin.js. Optional follow-up: also import PLAN_TIERS and derive PLAN_OPTIONS to remove the duplicated [1,3,6,12] literal."
+}

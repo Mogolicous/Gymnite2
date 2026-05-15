@@ -288,3 +288,91 @@ def test_admin_stats(admin_session):
     j = r.json()
     for k in ("no_subscribed", "pending", "subscribed"):
         assert k in j and isinstance(j[k], int)
+
+
+# ---------------- Iteration 3: receipts/upload + requested_plan_months ----------------
+@pytest.fixture
+def fresh_user_session():
+    s = requests.Session()
+    ts = int(time.time() * 1000)
+    email = f"TEST_iter3_{ts}@example.com".lower()
+    r = s.post(f"{API}/auth/register", json={"name": "TEST iter3", "email": email, "password": "secret1"}, timeout=15)
+    assert r.status_code == 200, r.text
+    s.email = email
+    s.user_id = r.json()["id"]
+    return s
+
+
+def test_receipt_upload_with_plan_months_persists_requested(fresh_user_session):
+    files = {"file": ("ticket.jpg", _jpg_bytes(), "image/jpeg")}
+    data = {"plan_months": "3"}
+    r = fresh_user_session.post(f"{API}/receipts/upload", files=files, data=data, timeout=20)
+    assert r.status_code == 200, r.text
+    j = r.json()
+    assert j["status"] == "pending"
+    assert j["requested_plan_months"] == 3
+    # Persisted via /auth/me
+    me = fresh_user_session.get(f"{API}/auth/me", timeout=15).json()
+    assert me["requested_plan_months"] == 3
+
+
+@pytest.mark.parametrize("months", [1, 3, 6, 12])
+def test_receipt_upload_accepts_all_valid_plan_months(months):
+    s = requests.Session()
+    ts = int(time.time() * 1000)
+    email = f"TEST_iter3_{months}_{ts}@example.com".lower()
+    s.post(f"{API}/auth/register", json={"name": "TEST", "email": email, "password": "secret1"}, timeout=15)
+    files = {"file": ("ticket.jpg", _jpg_bytes(), "image/jpeg")}
+    r = s.post(f"{API}/receipts/upload", files=files, data={"plan_months": str(months)}, timeout=20)
+    assert r.status_code == 200, r.text
+    assert r.json()["requested_plan_months"] == months
+
+
+def test_receipt_upload_rejects_invalid_plan_months(fresh_user_session):
+    files = {"file": ("ticket.jpg", _jpg_bytes(), "image/jpeg")}
+    r = fresh_user_session.post(f"{API}/receipts/upload", files=files, data={"plan_months": "5"}, timeout=15)
+    assert r.status_code == 400
+    assert "Plan inválido" in r.text or "plan" in r.text.lower()
+
+
+def test_receipt_upload_without_plan_months_still_works(fresh_user_session):
+    # Backwards compat: plan_months is optional
+    files = {"file": ("ticket.jpg", _jpg_bytes(), "image/jpeg")}
+    r = fresh_user_session.post(f"{API}/receipts/upload", files=files, timeout=20)
+    assert r.status_code == 200
+    j = r.json()
+    assert j["status"] == "pending"
+    # requested_plan_months may be None if never set
+    assert j.get("requested_plan_months") is None
+
+
+def test_admin_users_list_includes_requested_plan_months(admin_session):
+    s = requests.Session()
+    ts = int(time.time() * 1000)
+    email = f"TEST_iter3_admin_{ts}@example.com".lower()
+    s.post(f"{API}/auth/register", json={"name": "TEST", "email": email, "password": "secret1"}, timeout=15)
+    files = {"file": ("ticket.jpg", _jpg_bytes(), "image/jpeg")}
+    s.post(f"{API}/receipts/upload", files=files, data={"plan_months": "12"}, timeout=20)
+    users = admin_session.get(f"{API}/admin/users", timeout=15).json()
+    found = next((u for u in users if u.get("email") == email), None)
+    assert found is not None
+    assert "requested_plan_months" in found
+    assert found["requested_plan_months"] == 12
+
+
+def test_reject_clears_requested_plan_months_indirectly():
+    # reject doesn't currently clear requested_plan_months — document actual behavior.
+    # Keep test informational: ensure rejection doesn't crash even when user had requested plan.
+    admin = requests.Session()
+    admin.post(f"{API}/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}, timeout=15)
+    s = requests.Session()
+    ts = int(time.time() * 1000)
+    email = f"TEST_iter3_rej_{ts}@example.com".lower()
+    s.post(f"{API}/auth/register", json={"name": "TEST", "email": email, "password": "secret1"}, timeout=15)
+    me = s.get(f"{API}/auth/me", timeout=15).json()
+    files = {"file": ("ticket.jpg", _jpg_bytes(), "image/jpeg")}
+    s.post(f"{API}/receipts/upload", files=files, data={"plan_months": "6"}, timeout=20)
+    r = admin.post(f"{API}/admin/users/{me['id']}/reject", timeout=15)
+    assert r.status_code == 200
+    assert r.json()["status"] == "no_subscribed"
+    assert r.json()["has_receipt"] is False

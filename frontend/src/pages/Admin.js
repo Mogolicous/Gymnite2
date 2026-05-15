@@ -62,8 +62,16 @@ function formatDate(iso) {
 function ApprovalModal({ user, onClose, onApprove, onReject, actionLoading }) {
   const [image, setImage] = useState(null);
   const [imageLoading, setImageLoading] = useState(false);
-  const [planIdx, setPlanIdx] = useState(2); // default 6 months
+  // Default to the plan the user requested when uploading the receipt; fallback to 6 months.
+  const initialIdx = (() => {
+    const requested = user?.requested_plan_months;
+    const idx = PLAN_OPTIONS.indexOf(requested);
+    return idx >= 0 ? idx : 2;
+  })();
+  const [planIdx, setPlanIdx] = useState(initialIdx);
   const months = PLAN_OPTIONS[planIdx];
+  const requestedTier = planByMonths(user?.requested_plan_months);
+  const selectedTier = planByMonths(months);
 
   useEffect(() => {
     let active = true;
@@ -147,6 +155,21 @@ function ApprovalModal({ user, onClose, onApprove, onReject, actionLoading }) {
               </span>
             </div>
 
+            {requestedTier && (
+              <div
+                className="rounded-xl bg-purple-500/5 border border-purple-500/20 px-4 py-3"
+                data-testid="modal-requested-plan"
+              >
+                <div className="text-[10px] uppercase tracking-widest text-purple-400/80 mb-1">
+                  Plan solicitado por el usuario
+                </div>
+                <div className="text-sm text-zinc-100">
+                  <span className="font-semibold">{requestedTier.label}</span> ·{" "}
+                  <span className="text-purple-300">${requestedTier.price}</span>
+                </div>
+              </div>
+            )}
+
             <div>
               <div className="flex items-center justify-between mb-3">
                 <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
@@ -194,7 +217,7 @@ function ApprovalModal({ user, onClose, onApprove, onReject, actionLoading }) {
 
               <div className="mt-5 gn-card p-4 flex items-center gap-3" data-testid="plan-summary">
                 <Calendar className="h-4 w-4 text-purple-300" />
-                <div className="text-xs text-zinc-400">
+                <div className="text-xs text-zinc-400 flex-1">
                   Vence el{" "}
                   <span className="text-zinc-100 font-medium">
                     {formatDate(
@@ -202,6 +225,11 @@ function ApprovalModal({ user, onClose, onApprove, onReject, actionLoading }) {
                     )}
                   </span>
                 </div>
+                {selectedTier && (
+                  <div className="text-xs text-purple-300 font-semibold">
+                    ${selectedTier.price}
+                  </div>
+                )}
               </div>
             </div>
 

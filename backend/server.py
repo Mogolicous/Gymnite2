@@ -91,6 +91,7 @@ def serialize_user(u: dict) -> dict:
         "plan_months": u.get("plan_months"),
         "plan_started_at": u.get("plan_started_at"),
         "plan_expires_at": u.get("plan_expires_at"),
+        "requested_plan_months": u.get("requested_plan_months"),
     }
 
 async def get_current_user(request: Request) -> dict:
@@ -143,6 +144,7 @@ class UserOut(BaseModel):
     plan_months: Optional[int] = None
     plan_started_at: Optional[str] = None
     plan_expires_at: Optional[str] = None
+    requested_plan_months: Optional[int] = None
 
 class ApproveIn(BaseModel):
     plan_months: int = Field(..., description="Allowed values: 1, 3, 6, 12")
@@ -201,9 +203,15 @@ async def me(user: dict = Depends(get_current_user)):
 import base64
 
 @api_router.post("/receipts/upload", response_model=UserOut)
-async def upload_receipt(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+async def upload_receipt(
+    file: UploadFile = File(...),
+    plan_months: Optional[int] = Form(None),
+    user: dict = Depends(get_current_user),
+):
     if file.content_type not in ("image/jpeg", "image/jpg"):
         raise HTTPException(status_code=400, detail="Solo se permiten imágenes JPG")
+    if plan_months is not None and plan_months not in (1, 3, 6, 12):
+        raise HTTPException(status_code=400, detail="Plan inválido. Valores permitidos: 1, 3, 6, 12 meses")
     data = await file.read()
     if len(data) > 5 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="La imagen no debe superar 5MB")
@@ -211,14 +219,14 @@ async def upload_receipt(file: UploadFile = File(...), user: dict = Depends(get_
         raise HTTPException(status_code=400, detail="Archivo inválido")
     b64 = "data:image/jpeg;base64," + base64.b64encode(data).decode("utf-8")
     now = datetime.now(timezone.utc).isoformat()
-    await db.users.update_one(
-        {"id": user["id"]},
-        {"$set": {
-            "receipt_image": b64,
-            "receipt_uploaded_at": now,
-            "status": "pending",
-        }},
-    )
+    update = {
+        "receipt_image": b64,
+        "receipt_uploaded_at": now,
+        "status": "pending",
+    }
+    if plan_months is not None:
+        update["requested_plan_months"] = plan_months
+    await db.users.update_one({"id": user["id"]}, {"$set": update})
     updated = await db.users.find_one({"id": user["id"]}, {"_id": 0})
     return serialize_user(updated)
 
