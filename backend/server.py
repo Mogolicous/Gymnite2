@@ -297,6 +297,7 @@ async def reject_user(user_id: str, admin: dict = Depends(require_admin)):
             "plan_months": None,
             "plan_started_at": None,
             "plan_expires_at": None,
+            "requested_plan_months": None,
         }},
     )
     updated = await db.users.find_one({"id": user_id}, {"_id": 0})

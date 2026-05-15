@@ -19,6 +19,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { PLAN_TIERS, planByMonths } from "@/lib/plans";
 import { toast } from "sonner";
 
 const STATUS_META = {
@@ -27,7 +28,7 @@ const STATUS_META = {
   subscribed: { label: "Suscrito", pill: "bg-purple-500/10 text-purple-300 border-purple-500/30" },
 };
 
-const PLAN_OPTIONS = [1, 3, 6, 12];
+const PLAN_OPTIONS = PLAN_TIERS.map((t) => t.months);
 
 function StatCard({ icon: Icon, label, value, color, testId }) {
   return (

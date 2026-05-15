@@ -360,19 +360,28 @@ def test_admin_users_list_includes_requested_plan_months(admin_session):
     assert found["requested_plan_months"] == 12
 
 
-def test_reject_clears_requested_plan_months_indirectly():
-    # reject doesn't currently clear requested_plan_months — document actual behavior.
-    # Keep test informational: ensure rejection doesn't crash even when user had requested plan.
+def test_reject_clears_requested_plan_months():
+    # Iter4 fix: reject must null requested_plan_months so a user starting over has a clean slate.
     admin = requests.Session()
     admin.post(f"{API}/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}, timeout=15)
     s = requests.Session()
     ts = int(time.time() * 1000)
-    email = f"TEST_iter3_rej_{ts}@example.com".lower()
+    email = f"TEST_iter4_rej_{ts}@example.com".lower()
     s.post(f"{API}/auth/register", json={"name": "TEST", "email": email, "password": "secret1"}, timeout=15)
     me = s.get(f"{API}/auth/me", timeout=15).json()
     files = {"file": ("ticket.jpg", _jpg_bytes(), "image/jpeg")}
-    s.post(f"{API}/receipts/upload", files=files, data={"plan_months": "6"}, timeout=20)
+    up = s.post(f"{API}/receipts/upload", files=files, data={"plan_months": "12"}, timeout=20)
+    assert up.status_code == 200
+    assert up.json()["requested_plan_months"] == 12
+
     r = admin.post(f"{API}/admin/users/{me['id']}/reject", timeout=15)
     assert r.status_code == 200
-    assert r.json()["status"] == "no_subscribed"
-    assert r.json()["has_receipt"] is False
+    body = r.json()
+    assert body["status"] == "no_subscribed"
+    assert body["has_receipt"] is False
+    assert body.get("requested_plan_months") is None
+
+    # Verify via /auth/me that requested_plan_months is now null
+    me2 = s.get(f"{API}/auth/me", timeout=15).json()
+    assert me2["status"] == "no_subscribed"
+    assert me2.get("requested_plan_months") is None
