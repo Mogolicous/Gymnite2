@@ -12,7 +12,7 @@ from typing import Optional, List
 
 import bcrypt
 import jwt
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
@@ -80,13 +80,17 @@ def serialize_user(u: dict) -> dict:
     return {
         "id": u["id"],
         "name": u["name"],
-        "email": u["email"],
+        "email": u.get("email"),
         "role": u["role"],
         "status": u.get("status", "no_subscribed"),
         "has_receipt": bool(u.get("receipt_image")),
         "receipt_uploaded_at": u.get("receipt_uploaded_at"),
         "approved_at": u.get("approved_at"),
         "created_at": u.get("created_at"),
+        "manual": bool(u.get("manual", False)),
+        "plan_months": u.get("plan_months"),
+        "plan_started_at": u.get("plan_started_at"),
+        "plan_expires_at": u.get("plan_expires_at"),
     }
 
 async def get_current_user(request: Request) -> dict:
@@ -128,13 +132,20 @@ class LoginIn(BaseModel):
 class UserOut(BaseModel):
     id: str
     name: str
-    email: EmailStr
+    email: Optional[EmailStr] = None
     role: str
     status: str
     has_receipt: bool = False
     receipt_uploaded_at: Optional[str] = None
     approved_at: Optional[str] = None
     created_at: Optional[str] = None
+    manual: bool = False
+    plan_months: Optional[int] = None
+    plan_started_at: Optional[str] = None
+    plan_expires_at: Optional[str] = None
+
+class ApproveIn(BaseModel):
+    plan_months: int = Field(..., description="Allowed values: 1, 3, 6, 12")
 
 # ----------------- Auth Endpoints -----------------
 @api_router.post("/auth/register", response_model=UserOut)
@@ -155,6 +166,10 @@ async def register(payload: RegisterIn, response: Response):
         "receipt_uploaded_at": None,
         "approved_at": None,
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "manual": False,
+        "plan_months": None,
+        "plan_started_at": None,
+        "plan_expires_at": None,
     }
     await db.users.insert_one(doc)
     access = create_access_token(user_id, email, "user")
@@ -234,15 +249,25 @@ async def get_receipt(user_id: str, admin: dict = Depends(require_admin)):
     return {"name": u.get("name"), "email": u.get("email"), "image": u["receipt_image"]}
 
 @api_router.post("/admin/users/{user_id}/approve", response_model=UserOut)
-async def approve_user(user_id: str, admin: dict = Depends(require_admin)):
+async def approve_user(user_id: str, payload: ApproveIn, admin: dict = Depends(require_admin)):
+    if payload.plan_months not in (1, 3, 6, 12):
+        raise HTTPException(status_code=400, detail="Duración inválida. Valores permitidos: 1, 3, 6 o 12 meses")
     u = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not u:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     if u.get("role") == "admin":
         raise HTTPException(status_code=400, detail="No se puede modificar al administrador")
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(days=30 * payload.plan_months)
     await db.users.update_one(
         {"id": user_id},
-        {"$set": {"status": "subscribed", "approved_at": datetime.now(timezone.utc).isoformat()}},
+        {"$set": {
+            "status": "subscribed",
+            "approved_at": now.isoformat(),
+            "plan_months": payload.plan_months,
+            "plan_started_at": now.isoformat(),
+            "plan_expires_at": expires.isoformat(),
+        }},
     )
     updated = await db.users.find_one({"id": user_id}, {"_id": 0})
     return serialize_user(updated)
@@ -261,10 +286,64 @@ async def reject_user(user_id: str, admin: dict = Depends(require_admin)):
             "receipt_image": None,
             "receipt_uploaded_at": None,
             "approved_at": None,
+            "plan_months": None,
+            "plan_started_at": None,
+            "plan_expires_at": None,
         }},
     )
     updated = await db.users.find_one({"id": user_id}, {"_id": 0})
     return serialize_user(updated)
+
+@api_router.post("/admin/users/manual", response_model=UserOut)
+async def create_manual_user(
+    name: str = Form(...),
+    email: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    admin: dict = Depends(require_admin),
+):
+    name_clean = name.strip()
+    if len(name_clean) < 2:
+        raise HTTPException(status_code=400, detail="Nombre demasiado corto")
+    email_clean = (email or "").strip().lower() or None
+    if email_clean:
+        existing = await db.users.find_one({"email": email_clean})
+        if existing:
+            raise HTTPException(status_code=400, detail="Ya existe un usuario con ese correo")
+
+    receipt_b64 = None
+    receipt_at = None
+    status = "no_subscribed"
+    if file is not None:
+        if file.content_type not in ("image/jpeg", "image/jpg"):
+            raise HTTPException(status_code=400, detail="Solo se permiten imágenes JPG")
+        data = await file.read()
+        if len(data) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="La imagen no debe superar 5MB")
+        if len(data) < 100:
+            raise HTTPException(status_code=400, detail="Archivo inválido")
+        receipt_b64 = "data:image/jpeg;base64," + base64.b64encode(data).decode("utf-8")
+        receipt_at = datetime.now(timezone.utc).isoformat()
+        status = "pending"
+
+    user_id = str(uuid.uuid4())
+    doc = {
+        "id": user_id,
+        "name": name_clean,
+        "email": email_clean,
+        "password_hash": None,
+        "role": "user",
+        "status": status,
+        "receipt_image": receipt_b64,
+        "receipt_uploaded_at": receipt_at,
+        "approved_at": None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "manual": True,
+        "plan_months": None,
+        "plan_started_at": None,
+        "plan_expires_at": None,
+    }
+    await db.users.insert_one(doc)
+    return serialize_user(doc)
 
 @api_router.get("/admin/stats")
 async def admin_stats(admin: dict = Depends(require_admin)):
@@ -295,7 +374,18 @@ app.add_middleware(
 # ----------------- Seed -----------------
 @app.on_event("startup")
 async def on_startup():
-    await db.users.create_index("email", unique=True)
+    # Email: unique only when stored as a string (manual users may omit email)
+    existing_indexes = await db.users.index_information()
+    if "email_1" in existing_indexes and not existing_indexes["email_1"].get("partialFilterExpression"):
+        try:
+            await db.users.drop_index("email_1")
+        except Exception:
+            pass
+    await db.users.create_index(
+        "email",
+        unique=True,
+        partialFilterExpression={"email": {"$type": "string"}},
+    )
     await db.users.create_index("id", unique=True)
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@gymnite.com").lower().strip()
     admin_password = os.environ.get("ADMIN_PASSWORD", "12345")

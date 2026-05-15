@@ -1,8 +1,24 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import api, { formatApiError } from "@/lib/api";
-import { CheckCircle2, Clock, Eye, Loader2, Search, Users, XCircle, AlertCircle, ShieldCheck } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock,
+  Eye,
+  Loader2,
+  Search,
+  Users,
+  XCircle,
+  AlertCircle,
+  ShieldCheck,
+  Plus,
+  UserPlus,
+  Upload,
+  ImageOff,
+  Calendar,
+} from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 
 const STATUS_META = {
@@ -10,6 +26,8 @@ const STATUS_META = {
   pending: { label: "Pendiente", pill: "bg-amber-500/10 text-amber-300 border-amber-500/30" },
   subscribed: { label: "Suscrito", pill: "bg-purple-500/10 text-purple-300 border-purple-500/30" },
 };
+
+const PLAN_OPTIONS = [1, 3, 6, 12];
 
 function StatCard({ icon: Icon, label, value, color, testId }) {
   return (
@@ -27,12 +45,383 @@ function StatCard({ icon: Icon, label, value, color, testId }) {
   );
 }
 
+function formatDate(iso) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+/* ---------- Approve / Receipt modal ---------- */
+function ApprovalModal({ user, onClose, onApprove, onReject, actionLoading }) {
+  const [image, setImage] = useState(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [planIdx, setPlanIdx] = useState(2); // default 6 months
+  const months = PLAN_OPTIONS[planIdx];
+
+  useEffect(() => {
+    let active = true;
+    const fetchImage = async () => {
+      if (!user.has_receipt) return;
+      setImageLoading(true);
+      try {
+        const { data } = await api.get(`/admin/users/${user.id}/receipt`);
+        if (active) setImage(data.image);
+      } catch (err) {
+        if (active) toast.error(formatApiError(err));
+      } finally {
+        if (active) setImageLoading(false);
+      }
+    };
+    fetchImage();
+    return () => {
+      active = false;
+    };
+  }, [user.id, user.has_receipt]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+      onClick={onClose}
+      data-testid="receipt-modal"
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-4xl overflow-hidden shadow-[0_0_40px_rgba(168,85,247,0.18)] max-h-[90vh] flex flex-col"
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+          <div>
+            <div className="text-xs uppercase tracking-widest text-zinc-500">
+              Verificación de comprobante
+            </div>
+            <div className="font-semibold text-lg">{user.name}</div>
+            <div className="text-xs text-zinc-500">{user.email || "Sin email · manual"}</div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-white transition-colors"
+            data-testid="modal-close-btn"
+          >
+            <XCircle className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-0 flex-1 overflow-y-auto">
+          {/* Receipt preview */}
+          <div className="p-6 bg-black flex items-center justify-center min-h-[280px] md:border-r md:border-zinc-900">
+            {imageLoading ? (
+              <Loader2 className="h-6 w-6 text-purple-400 animate-spin" />
+            ) : image ? (
+              <img
+                src={image}
+                alt="Comprobante"
+                className="max-h-[60vh] max-w-full object-contain rounded-lg"
+                data-testid="receipt-modal-image"
+              />
+            ) : (
+              <div className="flex flex-col items-center text-zinc-600 gap-2" data-testid="receipt-modal-empty">
+                <ImageOff className="h-10 w-10" />
+                <span className="text-sm">Sin comprobante subido</span>
+              </div>
+            )}
+          </div>
+
+          {/* Approval controls */}
+          <div className="p-6 space-y-6">
+            <div>
+              <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">
+                Estado actual
+              </div>
+              <span
+                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${STATUS_META[user.status]?.pill}`}
+              >
+                {STATUS_META[user.status]?.label}
+              </span>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                  Duración del plan
+                </label>
+                <div
+                  className="text-right"
+                  data-testid="plan-current-value"
+                >
+                  <div className="text-3xl font-bold text-purple-300 leading-none gn-glow-text">
+                    {months}
+                  </div>
+                  <div className="text-[10px] uppercase tracking-widest text-zinc-500 mt-1">
+                    {months === 1 ? "mes" : "meses"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-1 pt-2 pb-1" data-testid="plan-slider-wrapper">
+                <Slider
+                  value={[planIdx]}
+                  onValueChange={(v) => setPlanIdx(v[0])}
+                  min={0}
+                  max={PLAN_OPTIONS.length - 1}
+                  step={1}
+                  className="[&_[role=slider]]:h-5 [&_[role=slider]]:w-5 [&_[role=slider]]:bg-purple-500 [&_[role=slider]]:border-purple-300 [&_[role=slider]]:shadow-[0_0_20px_rgba(168,85,247,0.6)] [&>span:first-child]:bg-zinc-800 [&>span:first-child>span]:bg-gradient-to-r [&>span:first-child>span]:from-purple-500 [&>span:first-child>span]:to-fuchsia-500"
+                  data-testid="plan-slider"
+                />
+                <div className="grid grid-cols-4 mt-3 text-[11px] text-zinc-500 select-none">
+                  {PLAN_OPTIONS.map((m, i) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setPlanIdx(i)}
+                      className={`text-center transition-colors ${
+                        i === planIdx ? "text-purple-300 font-semibold" : "hover:text-zinc-300"
+                      }`}
+                      data-testid={`plan-step-${m}`}
+                    >
+                      {m}m
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-5 gn-card p-4 flex items-center gap-3" data-testid="plan-summary">
+                <Calendar className="h-4 w-4 text-purple-300" />
+                <div className="text-xs text-zinc-400">
+                  Vence el{" "}
+                  <span className="text-zinc-100 font-medium">
+                    {formatDate(
+                      new Date(Date.now() + months * 30 * 86400 * 1000).toISOString()
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 pt-2">
+              <button
+                onClick={() => onApprove(user.id, months)}
+                disabled={actionLoading}
+                className="gn-btn-primary inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                data-testid="modal-approve-btn"
+              >
+                {actionLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                Aprobar suscripción · {months} {months === 1 ? "mes" : "meses"}
+              </button>
+              {user.status === "pending" && (
+                <button
+                  onClick={() => onReject(user.id)}
+                  disabled={actionLoading}
+                  className="rounded-full border border-zinc-800 hover:border-red-500/40 hover:text-red-300 px-5 py-2.5 text-sm text-zinc-300 transition-all disabled:opacity-50"
+                  data-testid="modal-reject-btn"
+                >
+                  Rechazar comprobante
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ---------- Add manual user modal ---------- */
+function AddUserModal({ onClose, onCreated }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const inputRef = useRef(null);
+
+  const handleFile = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!["image/jpeg", "image/jpg"].includes(f.type)) {
+      toast.error("Solo se permiten imágenes JPG.");
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      toast.error("La imagen no debe superar 5MB.");
+      return;
+    }
+    setFile(f);
+    const reader = new FileReader();
+    reader.onload = (ev) => setPreview(ev.target.result);
+    reader.readAsDataURL(f);
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!name.trim() || name.trim().length < 2) {
+      toast.error("Ingresa un nombre válido.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append("name", name.trim());
+      if (email.trim()) fd.append("email", email.trim());
+      if (file) fd.append("file", file);
+      const { data } = await api.post("/admin/users/manual", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success(`Usuario "${data.name}" agregado.`);
+      onCreated(data);
+    } catch (err) {
+      toast.error(formatApiError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+      onClick={onClose}
+      data-testid="add-user-modal"
+    >
+      <motion.form
+        onSubmit={submit}
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-[0_0_40px_rgba(168,85,247,0.18)]"
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+          <div className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5 text-purple-300" />
+            <div>
+              <div className="font-semibold">Agregar usuario manualmente</div>
+              <div className="text-xs text-zinc-500">No requiere cuenta · gestión interna</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-zinc-400 hover:text-white"
+            data-testid="add-user-close-btn"
+          >
+            <XCircle className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 block">
+              Nombre <span className="text-red-400">*</span>
+            </label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              minLength={2}
+              placeholder="Nombre completo"
+              className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-white placeholder:text-zinc-600 focus:outline-none focus:border-purple-500/60 focus:ring-2 focus:ring-purple-500/20"
+              data-testid="add-user-name-input"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 block">
+              Email <span className="text-zinc-600">(opcional)</span>
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="opcional@ejemplo.com"
+              className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-white placeholder:text-zinc-600 focus:outline-none focus:border-purple-500/60 focus:ring-2 focus:ring-purple-500/20"
+              data-testid="add-user-email-input"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 block">
+              Comprobante (JPG, opcional)
+            </label>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,.jpg,.jpeg"
+              onChange={handleFile}
+              className="hidden"
+              data-testid="add-user-file-input"
+            />
+            {preview ? (
+              <div className="rounded-xl border border-zinc-800 overflow-hidden">
+                <img src={preview} alt="preview" className="w-full h-40 object-contain bg-black" />
+                <div className="flex justify-end p-2 bg-zinc-950">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFile(null);
+                      setPreview(null);
+                    }}
+                    className="text-xs text-zinc-400 hover:text-red-300"
+                    data-testid="add-user-remove-file"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="w-full border border-dashed border-zinc-800 hover:border-purple-500/40 hover:bg-purple-500/5 rounded-xl py-6 transition-all text-sm text-zinc-400 inline-flex items-center justify-center gap-2"
+                data-testid="add-user-pick-file"
+              >
+                <Upload className="h-4 w-4" /> Subir comprobante JPG
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-zinc-800 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-zinc-800 hover:border-zinc-600 px-5 py-2 text-sm text-zinc-300"
+            data-testid="add-user-cancel-btn"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="gn-btn-primary inline-flex items-center gap-2 disabled:opacity-60"
+            data-testid="add-user-submit-btn"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            {loading ? "Creando..." : "Agregar usuario"}
+          </button>
+        </div>
+      </motion.form>
+    </div>
+  );
+}
+
+/* ---------- Admin page ---------- */
 export default function Admin() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [modal, setModal] = useState(null); // { user, image, loading }
+  const [approvalUser, setApprovalUser] = useState(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [actionId, setActionId] = useState(null);
 
   const load = useCallback(async () => {
@@ -63,33 +452,21 @@ export default function Admin() {
     return users.filter((u) => {
       const matchFilter = filter === "all" ? true : u.status === filter;
       const q = search.trim().toLowerCase();
-      const matchSearch = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+      const matchSearch =
+        !q ||
+        u.name.toLowerCase().includes(q) ||
+        (u.email || "").toLowerCase().includes(q);
       return matchFilter && matchSearch;
     });
   }, [users, filter, search]);
 
-  const openReceipt = async (u) => {
-    if (!u.has_receipt) {
-      toast.error("Este usuario aún no subió comprobante.");
-      return;
-    }
-    setModal({ user: u, image: null, loading: true });
-    try {
-      const { data } = await api.get(`/admin/users/${u.id}/receipt`);
-      setModal({ user: u, image: data.image, loading: false });
-    } catch (err) {
-      toast.error(formatApiError(err));
-      setModal(null);
-    }
-  };
-
-  const approve = async (userId) => {
+  const approve = async (userId, planMonths) => {
     setActionId(userId);
     try {
-      const { data } = await api.post(`/admin/users/${userId}/approve`);
+      const { data } = await api.post(`/admin/users/${userId}/approve`, { plan_months: planMonths });
       setUsers((prev) => prev.map((u) => (u.id === userId ? data : u)));
-      toast.success(`${data.name} fue aprobado como Suscrito.`);
-      if (modal?.user?.id === userId) setModal(null);
+      toast.success(`${data.name} aprobado por ${planMonths} ${planMonths === 1 ? "mes" : "meses"}.`);
+      setApprovalUser(null);
     } catch (err) {
       toast.error(formatApiError(err));
     } finally {
@@ -102,8 +479,8 @@ export default function Admin() {
     try {
       const { data } = await api.post(`/admin/users/${userId}/reject`);
       setUsers((prev) => prev.map((u) => (u.id === userId ? data : u)));
-      toast.success(`Comprobante rechazado.`);
-      if (modal?.user?.id === userId) setModal(null);
+      toast.success("Comprobante rechazado.");
+      setApprovalUser(null);
     } catch (err) {
       toast.error(formatApiError(err));
     } finally {
@@ -137,13 +514,22 @@ export default function Admin() {
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">Inscritos</h1>
             <p className="mt-2 text-zinc-400">Gestiona y valida los comprobantes de pago.</p>
           </div>
-          <button
-            onClick={load}
-            className="rounded-full border border-zinc-800 hover:border-purple-500/50 px-5 py-2 text-sm text-zinc-300 hover:text-white transition-colors"
-            data-testid="admin-refresh-btn"
-          >
-            Recargar
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setAddOpen(true)}
+              className="gn-btn-primary inline-flex items-center gap-2 text-sm"
+              data-testid="admin-add-user-btn"
+            >
+              <Plus className="h-4 w-4" /> Agregar usuario
+            </button>
+            <button
+              onClick={load}
+              className="rounded-full border border-zinc-800 hover:border-purple-500/50 px-5 py-2 text-sm text-zinc-300 hover:text-white transition-colors"
+              data-testid="admin-refresh-btn"
+            >
+              Recargar
+            </button>
+          </div>
         </motion.div>
 
         {/* Stats */}
@@ -203,6 +589,7 @@ export default function Admin() {
                     <th className="px-6 py-4 font-semibold">Usuario</th>
                     <th className="px-6 py-4 font-semibold">Email</th>
                     <th className="px-6 py-4 font-semibold">Estado</th>
+                    <th className="px-6 py-4 font-semibold">Plan</th>
                     <th className="px-6 py-4 font-semibold">Comprobante</th>
                     <th className="px-6 py-4 font-semibold text-right">Acciones</th>
                   </tr>
@@ -219,10 +606,19 @@ export default function Admin() {
                           <div className="h-9 w-9 rounded-full bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-sm font-semibold text-purple-200">
                             {u.name?.charAt(0).toUpperCase()}
                           </div>
-                          <span className="font-medium text-zinc-100">{u.name}</span>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-zinc-100">{u.name}</span>
+                            {u.manual && (
+                              <span className="text-[10px] uppercase tracking-widest text-purple-400/70">
+                                Manual
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-zinc-400">{u.email}</td>
+                      <td className="px-6 py-4 text-zinc-400">
+                        {u.email || <span className="text-zinc-600">—</span>}
+                      </td>
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${STATUS_META[u.status]?.pill}`}
@@ -232,16 +628,30 @@ export default function Admin() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
+                        {u.status === "subscribed" && u.plan_months ? (
+                          <div className="flex flex-col" data-testid={`row-plan-${u.id}`}>
+                            <span className="text-zinc-100 font-medium">
+                              {u.plan_months} {u.plan_months === 1 ? "mes" : "meses"}
+                            </span>
+                            <span className="text-[11px] text-zinc-500">
+                              vence {formatDate(u.plan_expires_at)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-zinc-600">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
                         {u.has_receipt ? (
                           <button
-                            onClick={() => openReceipt(u)}
+                            onClick={() => setApprovalUser(u)}
                             className="inline-flex items-center gap-1.5 text-purple-300 hover:text-purple-200 text-sm"
                             data-testid={`view-receipt-${u.id}`}
                           >
                             <Eye className="h-4 w-4" /> Ver
                           </button>
                         ) : (
-                          <span className="text-zinc-600 text-sm">—</span>
+                          <span className="text-zinc-600 text-sm">Sin archivo</span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -258,16 +668,12 @@ export default function Admin() {
                           )}
                           {u.status !== "subscribed" && (
                             <button
-                              onClick={() => approve(u.id)}
+                              onClick={() => setApprovalUser(u)}
                               disabled={actionId === u.id}
                               className="gn-btn-primary !px-5 !py-1.5 !text-xs inline-flex items-center gap-1.5 disabled:opacity-60"
                               data-testid={`approve-btn-${u.id}`}
                             >
-                              {actionId === u.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                              )}
+                              <CheckCircle2 className="h-3.5 w-3.5" />
                               Aprobar
                             </button>
                           )}
@@ -285,74 +691,24 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* Receipt modal */}
-      {modal && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-6"
-          onClick={() => setModal(null)}
-          data-testid="receipt-modal"
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            onClick={(e) => e.stopPropagation()}
-            className="bg-zinc-950 border border-zinc-800 rounded-2xl max-w-3xl w-full overflow-hidden shadow-[0_0_40px_rgba(168,85,247,0.18)]"
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-              <div>
-                <div className="text-xs uppercase tracking-widest text-zinc-500">Comprobante de</div>
-                <div className="font-semibold">{modal.user.name}</div>
-                <div className="text-xs text-zinc-500">{modal.user.email}</div>
-              </div>
-              <button
-                onClick={() => setModal(null)}
-                className="text-zinc-400 hover:text-white transition-colors"
-                data-testid="modal-close-btn"
-              >
-                <XCircle className="h-6 w-6" />
-              </button>
-            </div>
-            <div className="p-6 bg-black flex items-center justify-center min-h-[300px] max-h-[70vh]">
-              {modal.loading ? (
-                <Loader2 className="h-6 w-6 text-purple-400 animate-spin" />
-              ) : (
-                <img
-                  src={modal.image}
-                  alt="Comprobante"
-                  className="max-h-[60vh] max-w-full object-contain rounded-lg"
-                  data-testid="receipt-modal-image"
-                />
-              )}
-            </div>
-            <div className="px-6 py-4 border-t border-zinc-800 flex justify-end gap-3">
-              {modal.user.status === "pending" && (
-                <button
-                  onClick={() => reject(modal.user.id)}
-                  disabled={actionId === modal.user.id}
-                  className="rounded-full border border-zinc-800 hover:border-red-500/40 hover:text-red-300 px-5 py-2 text-sm text-zinc-300 transition-all disabled:opacity-50"
-                  data-testid="modal-reject-btn"
-                >
-                  Rechazar
-                </button>
-              )}
-              {modal.user.status !== "subscribed" && (
-                <button
-                  onClick={() => approve(modal.user.id)}
-                  disabled={actionId === modal.user.id}
-                  className="gn-btn-primary inline-flex items-center gap-2 disabled:opacity-60"
-                  data-testid="modal-approve-btn"
-                >
-                  {actionId === modal.user.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
-                  )}
-                  Aprobar
-                </button>
-              )}
-            </div>
-          </motion.div>
-        </div>
+      {/* Modals */}
+      {approvalUser && (
+        <ApprovalModal
+          user={approvalUser}
+          onClose={() => setApprovalUser(null)}
+          onApprove={approve}
+          onReject={reject}
+          actionLoading={actionId === approvalUser.id}
+        />
+      )}
+      {addOpen && (
+        <AddUserModal
+          onClose={() => setAddOpen(false)}
+          onCreated={(u) => {
+            setUsers((prev) => [u, ...prev]);
+            setAddOpen(false);
+          }}
+        />
       )}
     </div>
   );
