@@ -20,9 +20,14 @@ export default function Navbar() {
       data-testid="navbar"
     >
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2 group" data-testid="nav-logo">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center shadow-[0_0_20px_rgba(168,85,247,0.4)]">
-            <Dumbbell className="h-4 w-4 text-white" strokeWidth={2} />
+        <Link to="/" className="flex items-center gap-3 group" data-testid="nav-logo">
+          {/* Logo placeholder — reemplazar por el logo definitivo */}
+          <div
+            className="h-9 w-9 rounded-lg border border-dashed border-purple-500/40 bg-purple-500/5 flex items-center justify-center text-[9px] uppercase tracking-widest text-purple-300/70"
+            data-testid="nav-logo-placeholder"
+            aria-label="Espacio reservado para el logo"
+          >
+            Logo
           </div>
           <span className="text-lg font-semibold tracking-tight">
             Gym<span className="text-purple-400">Nite</span>
@@ -33,6 +38,9 @@ export default function Navbar() {
           <nav className="hidden md:flex items-center gap-8 text-sm text-zinc-400">
             <a href="#beneficios" className="hover:text-white transition-colors" data-testid="nav-beneficios">
               Beneficios
+            </a>
+            <a href="#horarios" className="hover:text-white transition-colors" data-testid="nav-horarios">
+              Horarios
             </a>
             <a href="#sobre-nosotros" className="hover:text-white transition-colors" data-testid="nav-sobre-nosotros">
               Sobre Nosotros

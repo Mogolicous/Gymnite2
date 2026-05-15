@@ -1,40 +1,59 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, Flame, Moon, Sparkles, Zap, ShieldCheck, Heart } from "lucide-react";
+import { ArrowRight, Sparkles, Dumbbell, Layout, Palette, Users, Activity, Brain, Clock, Sunrise, Moon, Calendar } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import HeroCarousel from "@/components/HeroCarousel";
 
 const BENEFITS = [
   {
-    icon: Moon,
-    title: "Entrena de Noche",
-    desc: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Acceso ilimitado en horario nocturno con ambiente exclusivo.",
+    icon: Dumbbell,
+    title: "Entrenamiento Híbrido",
+    desc: "Acceso total a clases de Kickboxing, Boxeo y Muay Thai, combinando técnica de combate con resistencia física real.",
   },
   {
-    icon: Flame,
-    title: "Equipo Premium",
-    desc: "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Máquinas de última generación.",
+    icon: Layout,
+    title: "Espacios de Alto Nivel",
+    desc: "Instalaciones amplias y despejadas que te permiten entrenar con total libertad de movimiento y seguridad.",
   },
   {
-    icon: Zap,
-    title: "Energía Constante",
-    desc: "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo.",
+    icon: Palette,
+    title: "Estética Motivadora",
+    desc: "Un ambiente moderno en tonos neón morados y negros diseñado para maximizar tu enfoque y energía en cada sesión.",
   },
   {
-    icon: ShieldCheck,
-    title: "Seguro 24/7",
-    desc: "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+    icon: Users,
+    title: "Comunidad Activa",
+    desc: "Participación en eventos y careos exclusivos, formando parte de un equipo que comparte tu pasión por los deportes de contacto.",
   },
   {
-    icon: Heart,
-    title: "Asesoría Personal",
-    desc: "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+    icon: Activity,
+    title: "Resultados Reales",
+    desc: "Fusión perfecta entre la quema calórica del combate y la tonificación del gimnasio para una recomposición corporal acelerada.",
   },
   {
-    icon: Sparkles,
-    title: "Ambiente Único",
-    desc: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Iluminación tenue y música seleccionada.",
+    icon: Brain,
+    title: "Poder Mental",
+    desc: "Descarga total de estrés y desarrollo de una disciplina inquebrantable que te sirve tanto dentro como fuera del ring.",
+  },
+];
+
+const SCHEDULE = [
+  {
+    title: "Gimnasio",
+    icon: Dumbbell,
+    slots: [
+      { icon: Sunrise, label: "Mañana", time: "5:00 AM – 1:00 PM" },
+      { icon: Moon, label: "Tarde", time: "4:00 PM – 10:30 PM" },
+    ],
+  },
+  {
+    title: "Box",
+    icon: Activity,
+    slots: [
+      { icon: Sunrise, label: "Mañana", time: "9:00 AM – 12:00 PM" },
+      { icon: Moon, label: "Tarde", time: "5:00 PM – 9:00 PM" },
+    ],
   },
 ];
 
@@ -53,22 +72,16 @@ export default function Landing() {
             transition={{ duration: 0.9, ease: "easeOut" }}
             className="max-w-2xl"
           >
-            <span
-              className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-purple-300/90 border border-purple-500/30 bg-purple-500/5 rounded-full px-3 py-1.5 mb-7"
-              data-testid="hero-eyebrow"
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.9)]" />
-              Gimnasio Nocturno Premium
-            </span>
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight">
-              Entrena cuando la
+              Conquista ese
               <br />
-              <span className="text-purple-400 gn-glow-text">ciudad duerme</span>.
+              <span className="text-purple-400 gn-glow-text">ser legendario</span>
+              <br />
+              que llevas dentro.
             </h1>
             <p className="mt-7 text-lg text-zinc-300/90 max-w-xl leading-relaxed">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-              eiusmod tempor incididunt ut labore et dolore magna aliqua. Un
-              espacio diseñado para quienes prefieren la noche.
+              Entrenamiento híbrido, comunidad real y un espacio diseñado para
+              que cada sesión te acerque a tu mejor versión.
             </p>
             <div className="mt-10 flex flex-wrap items-center gap-4">
               <Link
@@ -87,20 +100,15 @@ export default function Landing() {
               </a>
             </div>
 
-            <div className="mt-14 flex gap-10 text-sm">
+            <div className="mt-14 flex flex-wrap gap-x-10 gap-y-6 text-sm">
               <div data-testid="hero-stat-1">
-                <div className="text-3xl font-bold text-white">+500</div>
-                <div className="text-zinc-500">Miembros activos</div>
+                <div className="text-3xl font-bold text-white">+100</div>
+                <div className="text-zinc-500">Usuarios activos</div>
               </div>
-              <div className="border-l border-zinc-800" />
+              <div className="hidden sm:block border-l border-zinc-800" />
               <div data-testid="hero-stat-2">
-                <div className="text-3xl font-bold text-white">24/7</div>
-                <div className="text-zinc-500">Acceso continuo</div>
-              </div>
-              <div className="border-l border-zinc-800" />
-              <div data-testid="hero-stat-3">
-                <div className="text-3xl font-bold text-white">98%</div>
-                <div className="text-zinc-500">Satisfacción</div>
+                <div className="text-3xl font-bold text-white">5AM – 22:30</div>
+                <div className="text-zinc-500">Horarios user-friendly</div>
               </div>
             </div>
           </motion.div>
@@ -119,13 +127,13 @@ export default function Landing() {
               Beneficios
             </p>
             <h2 className="text-4xl sm:text-5xl font-bold tracking-tight">
-              Todo lo que necesitas,
+              Combate, fuerza
               <br />
-              <span className="text-zinc-500">nada que no.</span>
+              <span className="text-zinc-500">y disciplina.</span>
             </h2>
             <p className="mt-6 text-zinc-400 leading-relaxed">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut enim
-              ad minim veniam, quis nostrud exercitation ullamco laboris.
+              Una experiencia diseñada para forjar cuerpo, mente y comunidad —
+              dentro y fuera del ring.
             </p>
           </div>
 
@@ -150,6 +158,90 @@ export default function Landing() {
                 </motion.div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* HORARIOS */}
+      <section
+        id="horarios"
+        className="relative py-28 px-6 border-t border-white/5"
+        data-testid="horarios-section"
+      >
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+            <div className="lg:col-span-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-purple-400/80 mb-4">
+                Horarios
+              </p>
+              <h2 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.05]">
+                Cuando tú
+                <br />
+                <span className="text-purple-400">puedas</span>.
+              </h2>
+              <p className="mt-6 text-zinc-400 leading-relaxed">
+                Pensados para que entrenes sin pretextos: mañana, tarde y
+                sábados completos.
+              </p>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: 0.15 }}
+                className="mt-8 inline-flex items-center gap-3 gn-card px-5 py-4"
+                data-testid="schedule-saturday"
+              >
+                <Calendar className="h-4 w-4 text-purple-300" />
+                <div>
+                  <div className="text-[10px] uppercase tracking-widest text-zinc-500">
+                    Sábados
+                  </div>
+                  <div className="text-sm text-zinc-100 font-medium">
+                    7:00 AM – 1:00 PM
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+
+            <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+              {SCHEDULE.map((s, i) => {
+                const TitleIcon = s.icon;
+                return (
+                  <motion.div
+                    key={s.title}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: 0.1 * i }}
+                    className="gn-card p-7 hover:border-purple-500/40 transition-all"
+                    data-testid={`schedule-card-${s.title.toLowerCase()}`}
+                  >
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="h-10 w-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+                        <TitleIcon className="h-4 w-4 text-purple-300" strokeWidth={1.5} />
+                      </div>
+                      <h3 className="text-xl font-semibold">{s.title}</h3>
+                    </div>
+                    <ul className="space-y-4">
+                      {s.slots.map((slot) => {
+                        const SlotIcon = slot.icon;
+                        return (
+                          <li key={slot.label} className="flex items-center justify-between gap-4 border-b border-zinc-800/60 pb-3 last:border-0 last:pb-0">
+                            <div className="flex items-center gap-3 text-zinc-300">
+                              <SlotIcon className="h-4 w-4 text-purple-300/80" />
+                              <span className="text-sm">{slot.label}</span>
+                            </div>
+                            <span className="text-sm font-medium text-zinc-100 tabular-nums">
+                              {slot.time}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </motion.div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>

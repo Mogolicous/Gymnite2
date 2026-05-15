@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { formatApiError } from "@/lib/api";
-import { Dumbbell, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Register() {
@@ -42,9 +42,12 @@ export default function Register() {
         transition={{ duration: 0.6 }}
         className="relative w-full max-w-md"
       >
-        <Link to="/" className="flex items-center gap-2 mb-8 justify-center" data-testid="register-logo">
-          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center shadow-[0_0_20px_rgba(168,85,247,0.4)]">
-            <Dumbbell className="h-4 w-4 text-white" />
+        <Link to="/" className="flex items-center gap-3 mb-8 justify-center" data-testid="register-logo">
+          <div
+            className="h-10 w-10 rounded-lg border border-dashed border-purple-500/40 bg-purple-500/5 flex items-center justify-center text-[9px] uppercase tracking-widest text-purple-300/70"
+            aria-label="Espacio reservado para el logo"
+          >
+            Logo
           </div>
           <span className="text-xl font-semibold">
             Gym<span className="text-purple-400">Nite</span>
