@@ -41,6 +41,14 @@ Landing page + sistema de gestión "GymNite" con estética minimalismo dark + ac
 - Tabla admin: nueva columna "Plan" mostrando `N meses · vence DD-MM-YY` para suscritos.
 - 30/30 backend pytest passing, frontend E2E 100%.
 
+## Implemented (2026-05-15) — Iteration 3: Plan tiers + bank info
+- Constantes compartidas en `/app/frontend/src/lib/plans.js`: `PLAN_TIERS` (1m $25 / 3m $69 / 6m $129 / 12m $230, popular=6m) y `BANK_INFO` (Banco Pichincha, cuenta 2212128683, titular Yuleidy Ilaquiche Vega, correo Yuleidytamiana56@outlook.com).
+- Dashboard ahora muestra primero las 4 tarjetas de planes; al elegir una, transiciona a la sección "Datos para la transferencia" con los campos copiables del banco + área de upload.
+- `POST /api/receipts/upload` acepta el campo Form `plan_months` (1/3/6/12). Persiste `requested_plan_months` en el user. Validación 400 para valores inválidos.
+- Modal de aprobación admin muestra el plan solicitado por el usuario y el slider arranca en esa posición por defecto. Suma del precio en el resumen.
+- Reject ahora también limpia `requested_plan_months`.
+- 39/39 backend pytest passing, frontend E2E 100%. Bug crítico (`planByMonths` import faltante en Admin.js) detectado y corregido en este ciclo.
+
 ## Test Credentials
 - See `/app/memory/test_credentials.md`.
 
