@@ -281,16 +281,6 @@ export default function Landing() {
               intensidad. En GYMNITE, cada entrenamiento cuenta y cada miembro
               es parte de un equipo que nunca se rinde.
             </p>
-            <div className="mt-10 flex gap-6">
-              <div data-testid="about-stat-1">
-                <div className="text-2xl font-bold">Muay Thai</div>
-                <div className="text-zinc-500 text-sm">técnica de combate</div>
-              </div>
-              <div data-testid="about-stat-2">
-                <div className="text-2xl font-bold">MMA</div>
-                <div className="text-zinc-500 text-sm">estrategia integral</div>
-              </div>
-            </div>
           </motion.div>
 
           <motion.div
@@ -376,11 +366,18 @@ export default function Landing() {
               © {new Date().getFullYear()} GymNite. Todos los derechos reservados.
             </span>
           </div>
-          <div className="flex gap-6 text-sm text-zinc-500">
-            <span>Lorem ipsum</span>
-            <span>Política</span>
-            <span>Contacto</span>
-          </div>
+          <a
+            href={buildWhatsAppLink(
+              "Hola, me gustaría contactarlos. ¿Me podrían dar más información?"
+            )}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full border border-purple-500/30 hover:border-purple-400/60 bg-purple-500/10 hover:bg-purple-500/15 px-4 py-2 text-sm text-purple-200 hover:text-white transition-all"
+            data-testid="footer-contacto"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Contacto
+          </a>
         </div>
       </footer>
     </div>
