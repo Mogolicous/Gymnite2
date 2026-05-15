@@ -33,6 +33,14 @@ Landing page + sistema de gestión "GymNite" con estética minimalismo dark + ac
 - `data-testid` en todos los elementos interactivos.
 - Bug fix: `/api/admin/users` ahora usa aggregation `$addFields` para computar `has_receipt` mientras excluye el blob base64.
 
+## Implemented (2026-05-15) — Iteration 2: Admin enhancements
+- Plan duration on approval: slider con valores 1, 3, 6, 12 meses dentro del modal de verificación de comprobante. Default 6 meses. Botón muestra `Aprobar suscripción · N meses`. Backend calcula `plan_started_at` y `plan_expires_at` (now + 30·N días).
+- Manual users: nuevo endpoint `POST /api/admin/users/manual` (multipart) y dialog "Agregar usuario" en admin. Campos: nombre (req), email (opcional), comprobante JPG (opcional). Sin password_hash, marcado `manual: true`. Etiqueta "Manual" en tabla.
+- Email index migrado a unique parcial (`partialFilterExpression { email: { $type: 'string' } }`) para soportar manual users sin email.
+- Reject endpoint ahora también limpia los campos `plan_*`.
+- Tabla admin: nueva columna "Plan" mostrando `N meses · vence DD-MM-YY` para suscritos.
+- 30/30 backend pytest passing, frontend E2E 100%.
+
 ## Test Credentials
 - See `/app/memory/test_credentials.md`.
 
