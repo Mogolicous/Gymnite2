@@ -1,7 +1,7 @@
 export const PLAN_TIERS = [
   { months: 1, price: 25, label: "1 mes" },
-  { months: 3, price: 69, label: "3 meses", saving: "Ahorras $6" },
-  { months: 6, price: 129, label: "6 meses", popular: true },
+  { months: 3, price: 69, label: "3 meses" },
+  { months: 6, price: 129, label: "6 meses", saving: "Ahorras $21", popular: true },
   { months: 12, price: 230, label: "1 año", saving: "Ahorras $70" },
 ];
 
