@@ -614,13 +614,12 @@ export default function Admin() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs uppercase tracking-widest text-zinc-500 border-b border-zinc-800/80">
-                    <th className="px-6 py-4 font-semibold">Usuario</th>
-                    <th className="px-6 py-4 font-semibold">Email</th>
-                    <th className="px-6 py-4 font-semibold">Estado</th>
-                    <th className="px-6 py-4 font-semibold">Plan</th>
-                    <th className="px-6 py-4 font-semibold">Comprobante</th>
-                    <th className="px-6 py-4 font-semibold text-right">Acciones</th>
+                  <tr className="text-left text-[10px] uppercase tracking-widest text-zinc-500 border-b border-zinc-800/80">
+                    <th className="pl-4 pr-3 py-3 font-semibold">Usuario</th>
+                    <th className="hidden md:table-cell px-3 py-3 font-semibold">Email</th>
+                    <th className="px-3 py-3 font-semibold">Estado / Plan</th>
+                    <th className="hidden sm:table-cell px-3 py-3 font-semibold">Comprobante</th>
+                    <th className="pl-3 pr-4 py-3 font-semibold text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -630,76 +629,85 @@ export default function Admin() {
                       className="border-b border-zinc-900/80 hover:bg-zinc-900/40 transition-colors"
                       data-testid={`user-row-${u.id}`}
                     >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-full bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-sm font-semibold text-purple-200">
+                      <td className="pl-4 pr-3 py-3.5">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="shrink-0 h-9 w-9 rounded-full bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-sm font-semibold text-purple-200">
                             {u.name?.charAt(0).toUpperCase()}
                           </div>
-                          <div className="flex flex-col">
-                            <span className="font-medium text-zinc-100">{u.name}</span>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-medium text-zinc-100 truncate max-w-[160px] xl:max-w-[220px]">
+                              {u.name}
+                            </span>
                             {u.manual && (
                               <span className="text-[10px] uppercase tracking-widest text-purple-400/70">
                                 Manual
                               </span>
                             )}
+                            <span className="md:hidden text-[11px] text-zinc-500 truncate max-w-[160px]">
+                              {u.email || "—"}
+                            </span>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-zinc-400">
-                        {u.email || <span className="text-zinc-600">—</span>}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${STATUS_META[u.status]?.pill}`}
-                          data-testid={`row-status-${u.id}`}
-                        >
-                          {STATUS_META[u.status]?.label}
+                      <td className="hidden md:table-cell px-3 py-3.5 text-zinc-400">
+                        <span className="block truncate max-w-[200px] xl:max-w-[280px]">
+                          {u.email || <span className="text-zinc-600">—</span>}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        {u.status === "subscribed" && u.plan_months ? (
-                          <div className="flex flex-col" data-testid={`row-plan-${u.id}`}>
-                            <span className="text-zinc-100 font-medium">
-                              {u.plan_months} {u.plan_months === 1 ? "mes" : "meses"}
+                      <td className="px-3 py-3.5">
+                        <div className="flex flex-col gap-1">
+                          <span
+                            className={`inline-flex w-fit items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${STATUS_META[u.status]?.pill}`}
+                            data-testid={`row-status-${u.id}`}
+                          >
+                            {STATUS_META[u.status]?.label}
+                          </span>
+                          {u.status === "subscribed" && u.plan_months && (
+                            <span
+                              className="text-[11px] text-zinc-400"
+                              data-testid={`row-plan-${u.id}`}
+                            >
+                              {u.plan_months} {u.plan_months === 1 ? "mes" : "meses"} ·{" "}
+                              <span className="text-zinc-500">
+                                vence {formatDate(u.plan_expires_at)}
+                              </span>
                             </span>
-                            <span className="text-[11px] text-zinc-500">
-                              vence {formatDate(u.plan_expires_at)}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-zinc-600">—</span>
-                        )}
+                          )}
+                        </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="hidden sm:table-cell px-3 py-3.5">
                         {u.has_receipt ? (
                           <button
                             onClick={() => setApprovalUser(u)}
-                            className="inline-flex items-center gap-1.5 text-purple-300 hover:text-purple-200 text-sm"
+                            className="inline-flex items-center gap-1.5 text-purple-300 hover:text-purple-200 text-xs"
                             data-testid={`view-receipt-${u.id}`}
                           >
-                            <Eye className="h-4 w-4" /> Ver
+                            <Eye className="h-3.5 w-3.5" /> Ver
                           </button>
                         ) : (
-                          <span className="text-zinc-600 text-sm">Sin archivo</span>
+                          <span className="text-zinc-600 text-xs">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="inline-flex items-center gap-2">
+                      <td className="pl-3 pr-4 py-3.5 text-right">
+                        <div className="inline-flex items-center gap-1.5 flex-wrap justify-end">
                           {u.status === "pending" && (
                             <button
                               onClick={() => reject(u.id)}
                               disabled={actionId === u.id}
-                              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-800 hover:border-red-500/40 hover:text-red-300 px-4 py-1.5 text-xs text-zinc-300 transition-all disabled:opacity-50"
+                              title="Rechazar"
+                              className="inline-flex items-center gap-1 rounded-full border border-zinc-800 hover:border-red-500/40 hover:text-red-300 px-2.5 py-1 text-[11px] text-zinc-300 transition-all disabled:opacity-50"
                               data-testid={`reject-btn-${u.id}`}
                             >
-                              <XCircle className="h-3.5 w-3.5" /> Rechazar
+                              <XCircle className="h-3.5 w-3.5" />
+                              <span className="hidden lg:inline">Rechazar</span>
                             </button>
                           )}
                           {u.status !== "subscribed" && (
                             <button
                               onClick={() => setApprovalUser(u)}
                               disabled={actionId === u.id}
-                              className="gn-btn-primary !px-5 !py-1.5 !text-xs inline-flex items-center gap-1.5 disabled:opacity-60"
+                              title="Aprobar"
+                              className="gn-btn-primary !px-3 !py-1 !text-[11px] inline-flex items-center gap-1 disabled:opacity-60"
                               data-testid={`approve-btn-${u.id}`}
                             >
                               <CheckCircle2 className="h-3.5 w-3.5" />
@@ -707,7 +715,9 @@ export default function Admin() {
                             </button>
                           )}
                           {u.status === "subscribed" && (
-                            <span className="text-xs text-purple-300/80">Activo</span>
+                            <span className="text-[11px] text-purple-300/80 px-2">
+                              Activo
+                            </span>
                           )}
                         </div>
                       </td>
