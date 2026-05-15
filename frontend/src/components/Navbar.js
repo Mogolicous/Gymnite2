@@ -1,7 +1,8 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { LogOut, User, Shield, Dumbbell } from "lucide-react";
+import { LogOut, User, Shield } from "lucide-react";
+import { LOGO_URL } from "@/lib/brand";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -21,14 +22,12 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3 group" data-testid="nav-logo">
-          {/* Logo placeholder — reemplazar por el logo definitivo */}
-          <div
-            className="h-9 w-9 rounded-lg border border-dashed border-purple-500/40 bg-purple-500/5 flex items-center justify-center text-[9px] uppercase tracking-widest text-purple-300/70"
-            data-testid="nav-logo-placeholder"
-            aria-label="Espacio reservado para el logo"
-          >
-            Logo
-          </div>
+          <img
+            src={LOGO_URL}
+            alt="GymNite"
+            className="h-12 w-12 object-contain drop-shadow-[0_0_18px_rgba(168,85,247,0.45)]"
+            data-testid="nav-logo-img"
+          />
           <span className="text-lg font-semibold tracking-tight">
             Gym<span className="text-purple-400">Nite</span>
           </span>

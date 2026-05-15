@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { formatApiError } from "@/lib/api";
 import { Loader2 } from "lucide-react";
+import { LOGO_URL } from "@/lib/brand";
 import { toast } from "sonner";
 
 export default function Login() {
@@ -43,12 +44,11 @@ export default function Login() {
         className="relative w-full max-w-md"
       >
         <Link to="/" className="flex items-center gap-3 mb-8 justify-center" data-testid="login-logo">
-          <div
-            className="h-10 w-10 rounded-lg border border-dashed border-purple-500/40 bg-purple-500/5 flex items-center justify-center text-[9px] uppercase tracking-widest text-purple-300/70"
-            aria-label="Espacio reservado para el logo"
-          >
-            Logo
-          </div>
+          <img
+            src={LOGO_URL}
+            alt="GymNite"
+            className="h-16 w-16 object-contain drop-shadow-[0_0_22px_rgba(168,85,247,0.5)]"
+          />
           <span className="text-xl font-semibold">
             Gym<span className="text-purple-400">Nite</span>
           </span>

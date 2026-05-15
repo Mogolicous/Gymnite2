@@ -1,7 +1,6 @@
 // Contact info for WhatsApp deep-links.
-// TODO: reemplazar WHATSAPP_NUMBER con el número real cuando el usuario lo proporcione.
-// Formato internacional sin '+' ni espacios. Ejemplo Ecuador: "593999999999".
-export const WHATSAPP_NUMBER = "593999999999"; // placeholder
+// Formato internacional sin '+' ni espacios.
+export const WHATSAPP_NUMBER = "593998512965";
 
 export const WHATSAPP_DEFAULT_MESSAGE =
   "Hola, estoy interesado en inscribirme. ¿Me podrías dar más información?";
