@@ -262,28 +262,33 @@ export default function Landing() {
               Sobre Nosotros
             </p>
             <h2 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.1]">
-              Una comunidad
+              Un equipo que
               <br />
-              <span className="text-purple-400">nocturna</span>.
+              <span className="text-purple-400">nunca se rinde</span>.
             </h2>
             <p className="mt-7 text-zinc-400 leading-relaxed">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-              eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
-              enim ad minim veniam, quis nostrud exercitation ullamco.
+              <span className="text-zinc-100 font-semibold">GYMNITE</span> es
+              el punto de encuentro para una comunidad que entiende el valor
+              del esfuerzo. Fundado con la visión de elevar el estándar de los
+              centros de entrenamiento, nos especializamos en integrar la
+              disciplina de las artes marciales con un estilo de vida activo y
+              saludable.
             </p>
             <p className="mt-5 text-zinc-400 leading-relaxed">
-              Duis aute irure dolor in reprehenderit in voluptate velit esse
-              cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat
-              cupidatat non proident.
+              Nos enorgullece ser un espacio donde la técnica del{" "}
+              <span className="text-zinc-100">Muay Thai</span> y la estrategia
+              del <span className="text-zinc-100">MMA</span> se viven con
+              intensidad. En GYMNITE, cada entrenamiento cuenta y cada miembro
+              es parte de un equipo que nunca se rinde.
             </p>
             <div className="mt-10 flex gap-6">
               <div data-testid="about-stat-1">
-                <div className="text-2xl font-bold">5+ años</div>
-                <div className="text-zinc-500 text-sm">de experiencia</div>
+                <div className="text-2xl font-bold">Muay Thai</div>
+                <div className="text-zinc-500 text-sm">técnica de combate</div>
               </div>
               <div data-testid="about-stat-2">
-                <div className="text-2xl font-bold">3 sedes</div>
-                <div className="text-zinc-500 text-sm">en la ciudad</div>
+                <div className="text-2xl font-bold">MMA</div>
+                <div className="text-zinc-500 text-sm">estrategia integral</div>
               </div>
             </div>
           </motion.div>
@@ -311,7 +316,8 @@ export default function Landing() {
                 </span>
               </div>
               <p className="text-sm text-zinc-300">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+                Elevar el estándar del entrenamiento integrando disciplina
+                marcial con un estilo de vida activo.
               </p>
             </div>
           </motion.div>
