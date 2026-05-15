@@ -91,7 +91,6 @@ function PlanCard({ tier, selected, onSelect }) {
           <Sparkles className="h-3 w-3" /> Popular
         </span>
       )}
-      <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">{tier.tagline}</div>
       <div className="text-2xl font-bold text-white">{tier.label}</div>
       <div className="mt-5 flex items-baseline gap-1">
         <span className="text-4xl font-bold text-white">${tier.price}</span>
