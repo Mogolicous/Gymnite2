@@ -17,6 +17,7 @@ import {
   Upload,
   ImageOff,
   Calendar,
+  Trash2,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { PLAN_TIERS, planByMonths } from "@/lib/plans";
@@ -451,6 +452,7 @@ export default function Admin() {
   const [search, setSearch] = useState("");
   const [approvalUser, setApprovalUser] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [deleteUser, setDeleteUser] = useState(null);
   const [actionId, setActionId] = useState(null);
 
   const load = useCallback(async () => {
@@ -510,6 +512,22 @@ export default function Admin() {
       setUsers((prev) => prev.map((u) => (u.id === userId ? data : u)));
       toast.success("Comprobante rechazado.");
       setApprovalUser(null);
+    } catch (err) {
+      toast.error(formatApiError(err));
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteUser) return;
+    const userId = deleteUser.id;
+    setActionId(userId);
+    try {
+      await api.delete(`/admin/users/${userId}`);
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      toast.success(`${deleteUser.name} fue eliminado.`);
+      setDeleteUser(null);
     } catch (err) {
       toast.error(formatApiError(err));
     } finally {
@@ -719,6 +737,16 @@ export default function Admin() {
                               Activo
                             </span>
                           )}
+                          <button
+                            onClick={() => setDeleteUser(u)}
+                            disabled={actionId === u.id}
+                            title="Eliminar usuario"
+                            aria-label={`Eliminar a ${u.name}`}
+                            className="inline-flex items-center justify-center h-7 w-7 rounded-full border border-zinc-800 hover:border-red-500/50 hover:bg-red-500/10 text-zinc-500 hover:text-red-300 transition-all disabled:opacity-50"
+                            data-testid={`delete-btn-${u.id}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -748,6 +776,68 @@ export default function Admin() {
             setAddOpen(false);
           }}
         />
+      )}
+      {deleteUser && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+          onClick={() => actionId !== deleteUser.id && setDeleteUser(null)}
+          data-testid="delete-modal"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md overflow-hidden"
+          >
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-11 w-11 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center">
+                  <Trash2 className="h-5 w-5 text-red-300" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Eliminar usuario</h3>
+                  <p className="text-xs text-zinc-500">Esta acción no se puede deshacer.</p>
+                </div>
+              </div>
+              <p className="text-sm text-zinc-300">
+                ¿Seguro que quieres eliminar a{" "}
+                <span className="font-semibold text-white">{deleteUser.name}</span>
+                {deleteUser.email && (
+                  <>
+                    {" "}<span className="text-zinc-500">({deleteUser.email})</span>
+                  </>
+                )}
+                ?
+              </p>
+              <p className="text-xs text-zinc-500 mt-2">
+                Se borrarán también su comprobante y estado de suscripción.
+              </p>
+            </div>
+            <div className="px-6 py-4 border-t border-zinc-800 flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteUser(null)}
+                disabled={actionId === deleteUser.id}
+                className="rounded-full border border-zinc-800 hover:border-zinc-600 px-5 py-2 text-sm text-zinc-300 disabled:opacity-50"
+                data-testid="delete-cancel-btn"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={actionId === deleteUser.id}
+                className="inline-flex items-center gap-2 rounded-full bg-red-600 hover:bg-red-500 text-white px-5 py-2 text-sm font-medium shadow-[0_0_25px_rgba(239,68,68,0.35)] hover:shadow-[0_0_35px_rgba(239,68,68,0.6)] transition-all disabled:opacity-60"
+                data-testid="delete-confirm-btn"
+              >
+                {actionId === deleteUser.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                Eliminar
+              </button>
+            </div>
+          </motion.div>
+        </div>
       )}
     </div>
   );

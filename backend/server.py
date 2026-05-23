@@ -371,6 +371,16 @@ async def create_manual_user(
     await db.users.insert_one(doc)
     return serialize_user(doc)
 
+@api_router.delete("/admin/users/{user_id}")
+async def delete_user(user_id: str, admin: dict = Depends(require_admin)):
+    u = await db.users.find_one({"id": user_id}, {"_id": 0, "role": 1, "name": 1})
+    if not u:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if u.get("role") == "admin":
+        raise HTTPException(status_code=400, detail="No se puede eliminar al administrador")
+    await db.users.delete_one({"id": user_id})
+    return {"ok": True, "deleted": user_id, "name": u.get("name")}
+
 @api_router.get("/admin/stats")
 async def admin_stats(admin: dict = Depends(require_admin)):
     no_sub = await db.users.count_documents({"role": "user", "status": "no_subscribed"})
