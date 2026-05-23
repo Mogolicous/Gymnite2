@@ -15,6 +15,9 @@ import {
   Check,
   Sparkles,
   ArrowLeft,
+  X,
+  PartyPopper,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -117,11 +120,25 @@ export default function Dashboard() {
   const [selected, setSelected] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [dismissing, setDismissing] = useState(false);
   const inputRef = useRef(null);
 
   const status = user?.status || "no_subscribed";
   const meta = STATUS_META[status];
   const StatusIcon = meta.icon;
+  const adminAction = user?.last_admin_action; // "approved" | "rejected" | null
+
+  const dismissNotification = async () => {
+    setDismissing(true);
+    try {
+      const { data } = await api.post("/me/dismiss-notification");
+      setUser(data);
+    } catch (err) {
+      toast.error(formatApiError(err));
+    } finally {
+      setDismissing(false);
+    }
+  };
 
   // If status is pending, show user the previously requested plan as the default.
   const requestedPlan = planByMonths(user?.requested_plan_months);
@@ -183,6 +200,86 @@ export default function Dashboard() {
           </h1>
           <p className="mt-3 text-zinc-400">{meta.desc}</p>
         </motion.div>
+
+        {/* Admin action notification */}
+        {adminAction === "approved" && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-8 relative overflow-hidden rounded-2xl border border-purple-500/40 bg-gradient-to-br from-purple-600/15 via-purple-500/8 to-fuchsia-500/10 shadow-[0_0_40px_rgba(168,85,247,0.25)]"
+            data-testid="admin-alert-approved"
+          >
+            <div className="absolute -top-10 -right-10 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative p-6 flex items-start gap-4">
+              <div className="shrink-0 h-12 w-12 rounded-2xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center">
+                <PartyPopper className="h-5 w-5 text-purple-200" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold uppercase tracking-widest text-purple-300/90 mb-1">
+                  ¡Comprobante aprobado!
+                </div>
+                <p className="text-zinc-100 font-medium">
+                  Tu suscripción está activa. ¡Bienvenido al equipo GymNite!
+                </p>
+                <p className="text-sm text-zinc-400 mt-1">
+                  Ya puedes asistir en cualquier horario disponible.
+                </p>
+              </div>
+              <button
+                onClick={dismissNotification}
+                disabled={dismissing}
+                aria-label="Descartar notificación"
+                className="shrink-0 text-zinc-500 hover:text-white transition-colors disabled:opacity-50"
+                data-testid="dismiss-notification-btn"
+              >
+                {dismissing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <X className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {adminAction === "rejected" && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-8 relative overflow-hidden rounded-2xl border border-red-500/40 bg-red-500/10"
+            data-testid="admin-alert-rejected"
+          >
+            <div className="p-6 flex items-start gap-4">
+              <div className="shrink-0 h-12 w-12 rounded-2xl bg-red-500/15 border border-red-400/40 flex items-center justify-center">
+                <XCircle className="h-5 w-5 text-red-300" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold uppercase tracking-widest text-red-300/90 mb-1">
+                  Comprobante rechazado
+                </div>
+                <p className="text-zinc-100 font-medium">
+                  Tu comprobante no pudo ser validado.
+                </p>
+                <p className="text-sm text-zinc-400 mt-1">
+                  Revisa que la imagen sea legible, muestre el monto correcto y vuelve a subir uno nuevo.
+                </p>
+              </div>
+              <button
+                onClick={dismissNotification}
+                disabled={dismissing}
+                aria-label="Descartar notificación"
+                className="shrink-0 text-zinc-500 hover:text-white transition-colors disabled:opacity-50"
+                data-testid="dismiss-notification-btn"
+              >
+                {dismissing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <X className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+          </motion.div>
+        )}
 
         {/* Status card */}
         <motion.div

@@ -92,6 +92,8 @@ def serialize_user(u: dict) -> dict:
         "plan_started_at": u.get("plan_started_at"),
         "plan_expires_at": u.get("plan_expires_at"),
         "requested_plan_months": u.get("requested_plan_months"),
+        "last_admin_action": u.get("last_admin_action"),
+        "last_admin_action_at": u.get("last_admin_action_at"),
     }
 
 async def get_current_user(request: Request) -> dict:
@@ -145,6 +147,8 @@ class UserOut(BaseModel):
     plan_started_at: Optional[str] = None
     plan_expires_at: Optional[str] = None
     requested_plan_months: Optional[int] = None
+    last_admin_action: Optional[str] = None
+    last_admin_action_at: Optional[str] = None
 
 class ApproveIn(BaseModel):
     plan_months: int = Field(..., description="Allowed values: 1, 3, 6, 12")
@@ -198,6 +202,15 @@ async def logout(response: Response):
 @api_router.get("/auth/me", response_model=UserOut)
 async def me(user: dict = Depends(get_current_user)):
     return serialize_user(user)
+
+@api_router.post("/me/dismiss-notification", response_model=UserOut)
+async def dismiss_notification(user: dict = Depends(get_current_user)):
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"last_admin_action": None, "last_admin_action_at": None}},
+    )
+    updated = await db.users.find_one({"id": user["id"]}, {"_id": 0})
+    return serialize_user(updated)
 
 # ----------------- Receipts -----------------
 import base64
@@ -275,6 +288,8 @@ async def approve_user(user_id: str, payload: ApproveIn, admin: dict = Depends(r
             "plan_months": payload.plan_months,
             "plan_started_at": now.isoformat(),
             "plan_expires_at": expires.isoformat(),
+            "last_admin_action": "approved",
+            "last_admin_action_at": now.isoformat(),
         }},
     )
     updated = await db.users.find_one({"id": user_id}, {"_id": 0})
@@ -298,6 +313,8 @@ async def reject_user(user_id: str, admin: dict = Depends(require_admin)):
             "plan_started_at": None,
             "plan_expires_at": None,
             "requested_plan_months": None,
+            "last_admin_action": "rejected",
+            "last_admin_action_at": datetime.now(timezone.utc).isoformat(),
         }},
     )
     updated = await db.users.find_one({"id": user_id}, {"_id": 0})
