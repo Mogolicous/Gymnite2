@@ -41,6 +41,9 @@ export default function Navbar() {
             <a href="#horarios" className="hover:text-white transition-colors" data-testid="nav-horarios">
               Horarios
             </a>
+            <a href="#ubicacion" className="hover:text-white transition-colors" data-testid="nav-ubicacion">
+              Ubicación
+            </a>
             <a href="#sobre-nosotros" className="hover:text-white transition-colors" data-testid="nav-sobre-nosotros">
               Sobre Nosotros
             </a>

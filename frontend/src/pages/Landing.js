@@ -1,10 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, Sparkles, Dumbbell, Layout, Palette, Users, Activity, Brain, Sunrise, Moon, MessageCircle } from "lucide-react";
+import { ArrowRight, Sparkles, Dumbbell, Layout, Palette, Users, Activity, Brain, Sunrise, Moon, MessageCircle, MapPin, ExternalLink } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import HeroCarousel from "@/components/HeroCarousel";
-import { buildWhatsAppLink } from "@/lib/contact";
+import SocialLinks from "@/components/SocialLinks";
+import { buildWhatsAppLink, LOCATION } from "@/lib/contact";
 
 const BENEFITS = [
   {
@@ -244,6 +245,99 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* UBICACION */}
+      <section
+        id="ubicacion"
+        className="relative py-28 px-6 border-t border-white/5"
+        data-testid="ubicacion-section"
+      >
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="lg:col-span-5"
+          >
+            <p className="text-xs font-semibold uppercase tracking-widest text-purple-400/80 mb-4">
+              Ubicación
+            </p>
+            <h2 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.05]">
+              Ven a
+              <br />
+              <span className="text-purple-400">entrenar</span>.
+            </h2>
+            <p className="mt-6 text-zinc-400 leading-relaxed">
+              Encuéntranos fácilmente. Estamos abiertos en los horarios
+              indicados arriba para recibirte y darte el tour de las
+              instalaciones.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row gap-3">
+              <a
+                href={LOCATION.maps_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="gn-btn-primary inline-flex items-center justify-center gap-2 text-sm"
+                data-testid="ubicacion-maps-btn"
+              >
+                <MapPin className="h-4 w-4" />
+                Ver en Google Maps
+                <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+              </a>
+              <a
+                href={buildWhatsAppLink(
+                  "Hola, ¿me podrías indicar cómo llegar al gym?"
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-800 hover:border-purple-500/50 px-6 py-3 text-sm text-zinc-300 hover:text-white transition-all"
+                data-testid="ubicacion-whatsapp-btn"
+              >
+                <MessageCircle className="h-4 w-4" />
+                ¿Cómo llegar?
+              </a>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="lg:col-span-7"
+          >
+            <a
+              href={LOCATION.maps_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block relative rounded-3xl overflow-hidden border border-zinc-800 hover:border-purple-500/40 transition-all group shadow-[0_0_40px_rgba(168,85,247,0.12)]"
+              data-testid="ubicacion-map-card"
+            >
+              <iframe
+                title="Ubicación GymNite"
+                src={`https://www.google.com/maps?q=${LOCATION.lat},${LOCATION.lng}&hl=es&z=17&output=embed`}
+                className="w-full h-[400px] grayscale-[40%] contrast-110 brightness-75 group-hover:grayscale-0 group-hover:brightness-90 transition-all"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                allowFullScreen
+              />
+              <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-purple-500/10 rounded-3xl" />
+              <div className="pointer-events-none absolute bottom-0 inset-x-0 px-6 py-4 bg-gradient-to-t from-[#050505] to-transparent flex items-end justify-between">
+                <div>
+                  <div className="text-[10px] uppercase tracking-widest text-purple-300/80">
+                    {LOCATION.name}
+                  </div>
+                  <div className="text-sm text-zinc-100 font-medium">
+                    Click para abrir en Google Maps
+                  </div>
+                </div>
+                <ExternalLink className="h-4 w-4 text-purple-300" />
+              </div>
+            </a>
+          </motion.div>
+        </div>
+      </section>
+
       {/* ABOUT */}
       <section
         id="sobre-nosotros"
@@ -357,7 +451,7 @@ export default function Landing() {
 
       {/* FOOTER */}
       <footer className="border-t border-white/5 py-10 px-6" data-testid="footer">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-5">
           <div className="flex items-center gap-2">
             <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center">
               <span className="text-xs font-bold">G</span>
@@ -366,18 +460,21 @@ export default function Landing() {
               © {new Date().getFullYear()} GymNite. Todos los derechos reservados.
             </span>
           </div>
-          <a
-            href={buildWhatsAppLink(
-              "Hola, me gustaría contactarlos. ¿Me podrían dar más información?"
-            )}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-purple-500/30 hover:border-purple-400/60 bg-purple-500/10 hover:bg-purple-500/15 px-4 py-2 text-sm text-purple-200 hover:text-white transition-all"
-            data-testid="footer-contacto"
-          >
-            <MessageCircle className="h-4 w-4" />
-            Contacto
-          </a>
+          <div className="flex items-center gap-3">
+            <SocialLinks size="sm" />
+            <a
+              href={buildWhatsAppLink(
+                "Hola, me gustaría contactarlos. ¿Me podrían dar más información?"
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-purple-500/30 hover:border-purple-400/60 bg-purple-500/10 hover:bg-purple-500/15 px-4 py-2 text-sm text-purple-200 hover:text-white transition-all"
+              data-testid="footer-contacto"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Contacto
+            </a>
+          </div>
         </div>
       </footer>
     </div>
