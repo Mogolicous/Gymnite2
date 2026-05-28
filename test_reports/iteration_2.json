@@ -1,0 +1,47 @@
+{
+  "summary": "Iteration 2 testing complete. 30/30 backend pytest tests pass (auth, receipts, admin guards, approve with plan_months body + validation, reject clears plan fields, manual user creation with all variations). Frontend E2E verified: admin login, 'Agregar usuario' creates a manual user (no email path), row shows 'Manual' label on top of table, Aprobar opens receipt-modal with slider defaulting to 6, plan-step chips 1/3/6/12 correctly update plan-current-value, modal-approve-btn POSTs plan_months and row flips to Suscrito with row-plan-{id} showing '3 meses · vence <date>'. No blocking issues found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/admin/users/{id}/approve", "issue": "Empty body returns 422 (Pydantic) instead of 400 documented in spec. Functionally fine; main agent may want to unify error envelope."},
+      {"endpoint": "POST /api/admin/users/manual", "issue": "Accepts trailing-whitespace emails after .strip().lower() but does not run Pydantic EmailStr validation on the form field, so malformed emails (e.g. 'foo') would be persisted. Consider validating with EmailStr or a regex."},
+      {"endpoint": "general", "issue": "Cookies are SameSite=None; Secure=True hardcoded — fine on HTTPS preview, would silently fail on http://localhost."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin approval modal", "issues": ["plan-current-value renders the number and the 'meses' label as adjacent inline blocks; text_content collapses to '6meses'. Visually fine (the 3xl number sits on its own line) but worth aware of for screen readers — consider aria-label='6 meses'."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_gymnite.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Validate email format on /api/admin/users/manual (currently only .strip().lower(); any non-empty string is stored).",
+    "(Optional) Add aria-label to plan-current-value so '6 meses' is announced together."
+  ],
+  "critical_code_review_comments": [
+    "approve endpoint: payload validation duplicates Pydantic + manual check (`plan_months not in (1,3,6,12)`). Consider `Literal[1,3,6,12]` on the Pydantic model for one-shot 422 validation and remove the manual check.",
+    "Manual user receipt validation logic in create_manual_user duplicates the receipts/upload validator. Extract into a helper to keep DRY (same 5MB / JPG-only / <100 bytes checks appear twice).",
+    "list_users() now correctly uses aggregation $addFields for has_receipt (iteration 1 fix verified) and excludes the heavy receipt_image blob — good.",
+    "Partial unique index on email (partialFilterExpression {email:{$type:'string'}}) is correctly created and on_startup migrates the old full-unique index. Verified two manual users without email can co-exist.",
+    "server.py is at ~415 lines — still acceptable but split routers (auth/, admin/, receipts/) before adding more endpoints.",
+    "ADMIN_PASSWORD=12345 hardcoded in .env is acceptable for demo but should be rotated for production."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_gymnite.py"
+  ],
+  "success_rate": {
+    "backend": "100% (30/30)",
+    "frontend": "100% (add manual user, slider default=6, all chip steps update value, approve with chosen plan_months, row reflects Suscrito + plan info)"
+  },
+  "test_credentials": "Admin admin@gymnite.com / 12345 (auto-seeded, verified).",
+  "seed_data_creation": "Multiple TEST_* users via /api/auth/register and /api/admin/users/manual (including 2 manual users with no email, 1 manual with JPG → pending, 1 E2E manual user TEST_E2E_Manual_* approved with 3-month plan).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iteration 2 acceptance criteria validated. Pytest file covers: auth (login/logout/me/duplicate), receipts (jpg/png/auth), admin guards (401/403), admin list iter2 fields (manual, plan_months, plan_started_at, plan_expires_at, has_receipt), approve (missing body, invalid value, all valid values 1/3/6/12, persistence), reject (clears plan + receipt), manual users (with/without email, with/without file, duplicate email, non-jpg, >5MB, admin-only). Run with: REACT_APP_BACKEND_URL=<url> pytest backend/tests/test_gymnite.py.",
+  "rca of the issue": "No new bugs detected."
+}

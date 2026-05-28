@@ -1,0 +1,67 @@
+{
+  "summary": "Tested GymNite end-to-end: backend auth/receipt/admin APIs (pytest, 17/18 passing) and frontend E2E (landing, register->dashboard, JPG upload -> Pendiente, admin login, approve). Found one critical bug: admin user list returns has_receipt=false for every user, so the 'Ver' (view receipt) button never appears in the admin table, blocking the receipt-modal approval flow.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/admin/users",
+        "issue": "Always returns has_receipt=false even when the user uploaded a receipt. Root cause: list_users() Mongo projection in server.py (line 213) is {\"_id\":0,\"password_hash\":0,\"receipt_image\":0} — it excludes receipt_image, then serialize_user() evaluates bool(u.get('receipt_image')) -> False unconditionally. As a result the admin UI shows '—' instead of 'Ver' for every user and cannot open the receipt modal.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "general",
+        "issue": "Cookies are issued with SameSite=None; Secure=True hardcoded. Works on the HTTPS preview URL but will silently fail on http://localhost. Acceptable for the preview, flagging for awareness."
+      },
+      {
+        "endpoint": "CORSMiddleware",
+        "issue": "allow_origins falls back to http://localhost:3000 — fine but the FRONTEND_URL env is the source of truth; consider removing the fallback to fail fast on misconfig."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Admin table",
+        "issue": "All rows show '—' in COMPROBANTE column even after a user uploads a JPG, so the receipt modal (data-testid='receipt-modal') is never reachable from the UI. Direct consequence of the /api/admin/users projection bug above.",
+        "selector": "[data-testid^=\"view-receipt-\"]",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Admin opens receipt modal -> approve",
+        "issue": "View receipt button is not rendered because backend reports has_receipt=false. Approving directly from the row still works (verified manually in first E2E run, status flipped to Suscrito).",
+        "affected_selectors": ["[data-testid^=\"view-receipt-\"]", "[data-testid=\"receipt-modal\"]", "[data-testid=\"modal-approve-btn\"]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_gymnite.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Fix /api/admin/users projection in /app/backend/server.py:213. Simplest fix: remove 'receipt_image': 0 from the projection (small admin list, base64 size is acceptable) OR use a Mongo aggregation that adds {has_receipt: {$cond: [{$ifNull: ['$receipt_image', false]}, true, false]}} and excludes receipt_image. After fix the admin UI 'Ver' button will appear and the modal-approve flow will work end-to-end."
+  ],
+  "critical_code_review_comments": [
+    "server.py list_users() projection bug (excludes field then asks bool() of it) — root cause of the critical issue above.",
+    "ADMIN_PASSWORD=12345 hardcoded in .env is acceptable for the demo but should be rotated before any non-preview deployment.",
+    "Receipt is stored as base64 directly inside the user document. Fine for MVP but limits future scaling (Mongo doc size limit / list endpoints become heavy if projection bug is fixed by simply removing the exclusion).",
+    "server.py is approaching 320 lines and mixes auth, receipts, admin and seed in one file. Still fine but split into routers if it grows.",
+    "Cookies issued unconditionally with Secure=True and SameSite=None — local http testing would fail; document this explicitly."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_gymnite.py"
+  ],
+  "success_rate": {
+    "backend": "94% (17/18)",
+    "frontend": "85% (landing + register + dashboard + upload + admin login + row-level approve all working; receipt modal flow blocked by backend bug)"
+  },
+  "test_credentials": "Admin admin@gymnite.com / 12345 (auto-seeded, verified). Test users generated dynamically via /api/auth/register with TEST_/test_e2e_ prefixes.",
+  "seed_data_creation": "Created several test users via /api/auth/register during testing (TEST_user_*, TEST_logout_*, TEST_noreceipt_*, test_e2e_*). They have UUID ids and live alongside the seeded admin.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After main agent fixes the projection bug in list_users(), re-run pytest /app/backend/tests/test_gymnite.py (the test_admin_users_list assertion will pass once has_receipt is true). Then re-run the frontend admin E2E to confirm the 'Ver' button appears, the receipt modal opens with a data:image/jpeg base64 src, and modal-approve-btn flips the row badge to Suscrito.",
+  "rca of the issue": "Reproduction: 1) Register user; 2) POST /api/receipts/upload with a JPG; 3) GET /api/admin/users as admin -> the user object has has_receipt=false even though /api/admin/users/{id}/receipt returns the saved image correctly. Cause: db.users.find(..., {\"_id\":0,\"password_hash\":0,\"receipt_image\":0}) strips receipt_image, then serialize_user() builds has_receipt = bool(u.get('receipt_image')) which is bool(None) = False for every user. Mitigation: include receipt_image in the projection and let serialize_user compute the boolean, or pre-compute has_receipt server-side via aggregation and continue excluding the heavy field."
+}

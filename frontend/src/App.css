@@ -1,0 +1,6 @@
+/* App-level styles */
+.App {
+    min-height: 100vh;
+    background-color: var(--gn-bg);
+    color: var(--gn-text);
+}
