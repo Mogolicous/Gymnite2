@@ -116,6 +116,14 @@ class RoutineExercise(Base):
     reps: Mapped[int] = mapped_column(Integer)
     rest_seconds: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
+class ClassReservation(Base):
+    __tablename__ = "class_reservations"
+    id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), index=True)
+    date: Mapped[str] = mapped_column(String, index=True)
+    shift: Mapped[str] = mapped_column(String)
+    created_at: Mapped[str] = mapped_column(String)
+
 # ----------------- Helpers -----------------
 async def get_db():
     async with AsyncSessionLocal() as session:
@@ -283,6 +291,26 @@ class RoutineOut(BaseModel):
     name: str
     objective: Optional[str] = None
     exercises: List[RoutineExerciseOut] = []
+
+class ReservationIn(BaseModel):
+    date: str
+    shift: str
+
+class ReservationOut(BaseModel):
+    id: str
+    user_id: str
+    date: str
+    shift: str
+    created_at: str
+
+class AdminReservationOut(BaseModel):
+    id: str
+    date: str
+    shift: str
+    user_id: str
+    user_name: Optional[str] = None
+    user_email: Optional[str] = None
+    created_at: str
 
 # ----------------- Auth Endpoints -----------------
 @api_router.post("/auth/register", response_model=UserOut)
@@ -694,6 +722,48 @@ async def get_my_routines(user: User = Depends(get_current_user), db: AsyncSessi
             exercises=[RoutineExerciseOut(
                 id=e.id, routine_id=e.routine_id, name=e.name, sets=e.sets, reps=e.reps, rest_seconds=e.rest_seconds
             ) for e in exercises]
+        ))
+    return out
+
+# ----------------- Class Reservations -----------------
+@api_router.post("/classes/reserve", response_model=ReservationOut)
+async def reserve_class(payload: ReservationIn, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # Check if already reserved
+    existing = await db.execute(select(ClassReservation).where(ClassReservation.user_id == user.id, ClassReservation.date == payload.date, ClassReservation.shift == payload.shift))
+    if existing.scalars().first():
+        raise HTTPException(status_code=400, detail="Ya tienes una reserva para este turno.")
+        
+    res = ClassReservation(
+        id=str(uuid.uuid4()),
+        user_id=user.id,
+        date=payload.date,
+        shift=payload.shift,
+        created_at=datetime.datetime.utcnow().isoformat()
+    )
+    db.add(res)
+    await db.commit()
+    await db.refresh(res)
+    return res
+
+@api_router.get("/classes/my-reservations", response_model=List[ReservationOut])
+async def get_my_reservations(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    res = await db.execute(select(ClassReservation).where(ClassReservation.user_id == user.id).order_by(ClassReservation.date.desc()))
+    return res.scalars().all()
+
+@api_router.get("/classes/admin/reservations", response_model=List[AdminReservationOut])
+async def get_all_reservations(date: str, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    stmt = select(ClassReservation, User).outerjoin(User, ClassReservation.user_id == User.id).where(ClassReservation.date == date).order_by(ClassReservation.created_at.desc())
+    result = await db.execute(stmt)
+    out = []
+    for res, usr in result:
+        out.append(AdminReservationOut(
+            id=res.id,
+            date=res.date,
+            shift=res.shift,
+            user_id=res.user_id,
+            user_name=usr.name if usr else "Desconocido",
+            user_email=usr.email if usr else "",
+            created_at=res.created_at
         ))
     return out
 

@@ -22,6 +22,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { PLAN_TIERS, planByMonths } from "@/lib/plans";
 import { toast } from "sonner";
+import AdminReservations from "./AdminReservations";
 
 const STATUS_META = {
   no_subscribed: { label: "No Suscrito", pill: "bg-zinc-500/10 text-zinc-300 border-zinc-500/30" },
@@ -454,6 +455,7 @@ export default function Admin() {
   const [addOpen, setAddOpen] = useState(false);
   const [deleteUser, setDeleteUser] = useState(null);
   const [actionId, setActionId] = useState(null);
+  const [activeTab, setActiveTab] = useState("users"); // "users" | "reservations"
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -579,7 +581,29 @@ export default function Admin() {
           </div>
         </motion.div>
 
-        {/* Stats */}
+        {/* TABS */}
+        <div className="flex items-center gap-4 border-b border-zinc-800 mt-8 mb-8">
+          <button
+            onClick={() => setActiveTab("users")}
+            className={`pb-3 px-2 text-sm font-medium transition-colors border-b-2 ${
+              activeTab === "users" ? "border-purple-500 text-purple-400" : "border-transparent text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            Suscripciones
+          </button>
+          <button
+            onClick={() => setActiveTab("reservations")}
+            className={`pb-3 px-2 text-sm font-medium transition-colors border-b-2 ${
+              activeTab === "reservations" ? "border-purple-500 text-purple-400" : "border-transparent text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            Clases & Reservas
+          </button>
+        </div>
+
+        {activeTab === "users" ? (
+          <>
+            {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-10">
           <StatCard icon={Users} label="Total" value={stats.total} color="bg-zinc-800/50 text-zinc-300" testId="stat-total" />
           <StatCard icon={Clock} label="Pendientes" value={stats.pending || 0} color="bg-amber-500/15 text-amber-300" testId="stat-pending" />
@@ -756,6 +780,10 @@ export default function Admin() {
             </div>
           )}
         </div>
+          </>
+        ) : (
+          <AdminReservations />
+        )}
       </div>
 
       {/* Modals */}
