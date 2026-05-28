@@ -7,7 +7,7 @@ import RoutineSection from "@/components/RoutineSection";
 import BookingSection from "@/components/BookingSection";
 import { useAuth } from "@/context/AuthContext";
 import api, { formatApiError } from "@/lib/api";
-import { PLAN_TIERS, BANK_INFO, planByMonths } from "@/lib/plans";
+import { PLAN_TIERS, BANK_INFO, planByMonthsAndType } from "@/lib/plans";
 import {
   Upload,
   CheckCircle2,
@@ -121,7 +121,8 @@ function PlanCard({ tier, selected, onSelect }) {
 
 export default function Dashboard() {
   const { user, setUser } = useAuth();
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(null); // { months: X, type: 'pesas' }
+  const [selectedCategory, setSelectedCategory] = useState("pesas");
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(null);
   const [dismissing, setDismissing] = useState(false);
@@ -145,7 +146,7 @@ export default function Dashboard() {
   };
 
   // If status is pending, show user the previously requested plan as the default.
-  const requestedPlan = planByMonths(user?.requested_plan_months);
+  const requestedPlan = planByMonthsAndType(user?.requested_plan_months, user?.requested_plan_type || "pesas");
 
   const handleFile = (e) => {
     const f = e.target.files?.[0];
@@ -171,6 +172,7 @@ export default function Dashboard() {
       const fd = new FormData();
       fd.append("file", preview.file);
       fd.append("plan_months", String(selected.months));
+      fd.append("plan_type", selected.type);
       const { data } = await api.post("/receipts/upload", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -371,8 +373,30 @@ export default function Dashboard() {
                       Pago único por transferencia · sin permanencia
                     </span>
                   </div>
+
+                  {/* CATEGORY TABS */}
+                  <div className="flex items-center gap-4 border-b border-zinc-800 mb-6 pb-0 overflow-x-auto scrollbar-hide">
+                    {[
+                      { id: "pesas", label: "Gym (Pesas)" },
+                      { id: "clases", label: "Clases (Box)" },
+                      { id: "premium", label: "Premium (Todo)" },
+                    ].map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setSelectedCategory(cat.id)}
+                        className={`pb-3 px-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
+                          selectedCategory === cat.id
+                            ? "border-purple-500 text-purple-400"
+                            : "border-transparent text-zinc-500 hover:text-zinc-300"
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                    {PLAN_TIERS.map((t) => (
+                    {PLAN_TIERS[selectedCategory].map((t) => (
                       <PlanCard
                         key={t.months}
                         tier={t}
@@ -546,24 +570,30 @@ export default function Dashboard() {
         {/* Phase 1 & 2 & 3 Features for subscribed users */}
         {status === "subscribed" && (
           <>
-            <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.2 }}
-              className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-8"
-            >
-              <RoutineSection />
-              <AttendanceSection />
-              <PhysicalEvaluationSection />
-            </motion.div>
+            {/* Solo Pesas y Premium ven las rutinas y evaluación */}
+            {(user?.plan_type === "pesas" || user?.plan_type === "premium") && (
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.2 }}
+                className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-8"
+              >
+                <RoutineSection />
+                <AttendanceSection />
+                <PhysicalEvaluationSection />
+              </motion.div>
+            )}
             
-            <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.3 }}
-            >
-              <BookingSection />
-            </motion.div>
+            {/* Solo Clases y Premium ven el Booking */}
+            {(user?.plan_type === "clases" || user?.plan_type === "premium") && (
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.3 }}
+              >
+                <BookingSection />
+              </motion.div>
+            )}
           </>
         )}
 

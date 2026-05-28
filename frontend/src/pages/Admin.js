@@ -20,7 +20,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
-import { PLAN_TIERS, planByMonths } from "@/lib/plans";
+import { PLAN_TIERS, planByMonthsAndType } from "@/lib/plans";
 import { toast } from "sonner";
 import AdminReservations from "./AdminReservations";
 
@@ -30,7 +30,7 @@ const STATUS_META = {
   subscribed: { label: "Suscrito", pill: "bg-purple-500/10 text-purple-300 border-purple-500/30" },
 };
 
-const PLAN_OPTIONS = PLAN_TIERS.map((t) => t.months);
+const PLAN_OPTIONS = PLAN_TIERS.pesas.map((t) => t.months);
 
 function StatCard({ icon: Icon, label, value, color, testId }) {
   return (
@@ -72,9 +72,11 @@ function ApprovalModal({ user, onClose, onApprove, onReject, actionLoading }) {
     return idx >= 0 ? idx : 2;
   })();
   const [planIdx, setPlanIdx] = useState(initialIdx);
-  const months = PLAN_OPTIONS[planIdx];
-  const requestedTier = planByMonths(user?.requested_plan_months);
-  const selectedTier = planByMonths(months);
+  const [typeSelected, setTypeSelected] = useState(user?.requested_plan_type || "pesas");
+  const planOptions = PLAN_TIERS[typeSelected]?.map(t => t.months) || PLAN_OPTIONS;
+  const months = planOptions[planIdx] || planOptions[0];
+  const requestedTier = planByMonthsAndType(user?.requested_plan_months, user?.requested_plan_type);
+  const selectedTier = planByMonthsAndType(months, typeSelected);
 
   useEffect(() => {
     let active = true;
@@ -147,9 +149,34 @@ function ApprovalModal({ user, onClose, onApprove, onReject, actionLoading }) {
 
           {/* Approval controls */}
           <div className="p-6 space-y-6">
+            <div className="mb-6">
+              <div className="text-xs uppercase text-zinc-500 tracking-widest mb-3">
+                1. Selecciona el Tipo de Plan
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: "pesas", label: "Gym" },
+                  { id: "clases", label: "Clases" },
+                  { id: "premium", label: "Premium" }
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTypeSelected(t.id)}
+                    className={`py-2 px-3 rounded-lg border text-sm font-medium transition-all ${
+                      typeSelected === t.id
+                        ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
+                        : "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-300"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div>
-              <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">
-                Estado actual
+              <div className="text-xs uppercase text-zinc-500 tracking-widest mb-3">
+                2. Selecciona la Duración
               </div>
               <span
                 className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${STATUS_META[user.status]?.pill}`}
@@ -196,13 +223,13 @@ function ApprovalModal({ user, onClose, onApprove, onReject, actionLoading }) {
                   value={[planIdx]}
                   onValueChange={(v) => setPlanIdx(v[0])}
                   min={0}
-                  max={PLAN_OPTIONS.length - 1}
+                  max={planOptions.length - 1}
                   step={1}
                   className="[&_[role=slider]]:h-5 [&_[role=slider]]:w-5 [&_[role=slider]]:bg-purple-500 [&_[role=slider]]:border-purple-300 [&_[role=slider]]:shadow-[0_0_20px_rgba(168,85,247,0.6)] [&>span:first-child]:bg-zinc-800 [&>span:first-child>span]:bg-gradient-to-r [&>span:first-child>span]:from-purple-500 [&>span:first-child>span]:to-fuchsia-500"
                   data-testid="plan-slider"
                 />
                 <div className="grid grid-cols-4 mt-3 text-[11px] text-zinc-500 select-none">
-                  {PLAN_OPTIONS.map((m, i) => (
+                  {planOptions.map((m, i) => (
                     <button
                       key={m}
                       type="button"
@@ -238,7 +265,7 @@ function ApprovalModal({ user, onClose, onApprove, onReject, actionLoading }) {
 
             <div className="flex flex-col gap-3 pt-2">
               <button
-                onClick={() => onApprove(user.id, months)}
+                onClick={() => onApprove(user.id, months, typeSelected)}
                 disabled={actionLoading}
                 className="gn-btn-primary inline-flex items-center justify-center gap-2 disabled:opacity-60"
                 data-testid="modal-approve-btn"
@@ -493,10 +520,13 @@ export default function Admin() {
     });
   }, [users, filter, search]);
 
-  const approve = async (userId, planMonths) => {
+  const approve = async (userId, planMonths, planType) => {
     setActionId(userId);
     try {
-      const { data } = await api.post(`/admin/users/${userId}/approve`, { plan_months: planMonths });
+      const { data } = await api.post(`/admin/users/${userId}/approve`, { 
+        plan_months: planMonths,
+        plan_type: planType 
+      });
       setUsers((prev) => prev.map((u) => (u.id === userId ? data : u)));
       toast.success(`${data.name} aprobado por ${planMonths} ${planMonths === 1 ? "mes" : "meses"}.`);
       setApprovalUser(null);
