@@ -17,7 +17,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column
-from sqlalchemy import String, Boolean, Integer, Text, select, update, delete, func
+from sqlalchemy import String, Boolean, Integer, Text, Float, ForeignKey, select, update, delete, func
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -82,6 +82,23 @@ class User(Base):
     last_admin_action_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     reset_code: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     reset_code_expires_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+class Attendance(Base):
+    __tablename__ = "attendance"
+    id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), index=True)
+    date: Mapped[str] = mapped_column(String, index=True)  # Format: YYYY-MM-DD
+    timestamp: Mapped[str] = mapped_column(String)
+
+class PhysicalEvaluation(Base):
+    __tablename__ = "physical_evaluations"
+    id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), index=True)
+    date: Mapped[str] = mapped_column(String)  # Format: YYYY-MM-DD
+    weight_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    body_fat_pct: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    muscle_mass_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 # ----------------- Helpers -----------------
 async def get_db():
@@ -218,6 +235,23 @@ class ResetPasswordIn(BaseModel):
     email: EmailStr
     code: str = Field(min_length=6, max_length=6)
     new_password: str = Field(min_length=5, max_length=128)
+
+class AttendanceOut(BaseModel):
+    id: str
+    user_id: str
+    date: str
+    timestamp: str
+
+class PhysicalEvaluationIn(BaseModel):
+    date: str
+    weight_kg: Optional[float] = None
+    body_fat_pct: Optional[float] = None
+    muscle_mass_kg: Optional[float] = None
+    notes: Optional[str] = None
+
+class PhysicalEvaluationOut(PhysicalEvaluationIn):
+    id: str
+    user_id: str
 
 # ----------------- Auth Endpoints -----------------
 @api_router.post("/auth/register", response_model=UserOut)
@@ -536,6 +570,59 @@ async def admin_stats(admin: User = Depends(require_admin), db: AsyncSession = D
     subscribed = result_subscribed.scalar_one()
     
     return {"no_subscribed": no_sub, "pending": pending, "subscribed": subscribed}
+
+# ----------------- Attendance -----------------
+@api_router.post("/attendance", response_model=AttendanceOut)
+async def check_in(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if user.status != "subscribed":
+        raise HTTPException(status_code=403, detail="Suscripción inactiva. No puedes registrar asistencia.")
+    
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    
+    # Check if already checked in today
+    result = await db.execute(select(Attendance).where(Attendance.user_id == user.id, Attendance.date == today))
+    existing = result.scalar_one_or_none()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya registraste tu asistencia hoy.")
+        
+    new_attendance = Attendance(
+        id=str(uuid.uuid4()),
+        user_id=user.id,
+        date=today,
+        timestamp=datetime.now(timezone.utc).isoformat()
+    )
+    db.add(new_attendance)
+    await db.commit()
+    await db.refresh(new_attendance)
+    return new_attendance
+
+@api_router.get("/attendance/me", response_model=List[AttendanceOut])
+async def get_my_attendance(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Attendance).where(Attendance.user_id == user.id).order_by(Attendance.date.desc()))
+    return result.scalars().all()
+
+# ----------------- Physical Evaluations -----------------
+@api_router.post("/evaluations", response_model=PhysicalEvaluationOut)
+async def add_evaluation(payload: PhysicalEvaluationIn, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    new_eval = PhysicalEvaluation(
+        id=str(uuid.uuid4()),
+        user_id=user.id,
+        date=payload.date,
+        weight_kg=payload.weight_kg,
+        body_fat_pct=payload.body_fat_pct,
+        muscle_mass_kg=payload.muscle_mass_kg,
+        notes=payload.notes
+    )
+    db.add(new_eval)
+    await db.commit()
+    await db.refresh(new_eval)
+    return new_eval
+
+@api_router.get("/evaluations/me", response_model=List[PhysicalEvaluationOut])
+async def get_my_evaluations(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(PhysicalEvaluation).where(PhysicalEvaluation.user_id == user.id).order_by(PhysicalEvaluation.date.asc()))
+    return result.scalars().all()
 
 # ----------------- Health -----------------
 @api_router.get("/")

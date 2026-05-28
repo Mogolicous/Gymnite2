@@ -1,8 +1,8 @@
 import asyncio
 import os
 from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy import text
 from dotenv import load_dotenv
+from server import Base
 
 load_dotenv()
 
@@ -23,17 +23,9 @@ async def main():
     )
     
     async with engine.begin() as conn:
-        try:
-            await conn.execute(text("ALTER TABLE users ADD COLUMN reset_code VARCHAR;"))
-            print("Added reset_code column")
-        except Exception as e:
-            print(f"Error adding reset_code: {e}")
-            
-        try:
-            await conn.execute(text("ALTER TABLE users ADD COLUMN reset_code_expires_at VARCHAR;"))
-            print("Added reset_code_expires_at column")
-        except Exception as e:
-            print(f"Error adding reset_code_expires_at: {e}")
+        print("Creating new tables...")
+        await conn.run_sync(Base.metadata.create_all)
+        print("Tables created successfully.")
             
     await engine.dispose()
 
