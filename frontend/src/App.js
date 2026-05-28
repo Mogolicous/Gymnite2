@@ -9,7 +9,6 @@ import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
 import ForgotPassword from "@/pages/ForgotPassword";
-import ResetPassword from "@/pages/ResetPassword";
 import WhatsAppFab from "@/components/WhatsAppFab";
 import { Toaster } from "sonner";
 
@@ -48,14 +47,7 @@ function AppRoutes() {
           </GuestOnly>
         }
       />
-      <Route
-        path="/reset-password"
-        element={
-          <GuestOnly>
-            <ResetPassword />
-          </GuestOnly>
-        }
-      />
+
       <Route
         path="/dashboard"
         element={

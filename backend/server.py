@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 from pathlib import Path
 import os
-import uuid
+import secrets
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
@@ -79,6 +79,8 @@ class User(Base):
     requested_plan_months: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     last_admin_action: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     last_admin_action_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    reset_code: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    reset_code_expires_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
 # ----------------- Helpers -----------------
 async def get_db():
@@ -212,7 +214,8 @@ class ForgotPasswordIn(BaseModel):
     email: EmailStr
 
 class ResetPasswordIn(BaseModel):
-    token: str
+    email: EmailStr
+    code: str = Field(min_length=6, max_length=6)
     new_password: str = Field(min_length=5, max_length=128)
 
 # ----------------- Auth Endpoints -----------------
@@ -275,54 +278,69 @@ async def forgot_password(payload: ForgotPasswordIn, db: AsyncSession = Depends(
     user = result.scalar_one_or_none()
     
     if not user:
-        # We don't want to reveal if a user exists or not for security reasons
-        return {"ok": True, "message": "Si el correo está registrado, se enviará un enlace de recuperación."}
+        return {"ok": True, "message": "Si el correo está registrado, se enviará un código de recuperación."}
     
-    # Create reset token (valid for 30 minutes)
-    reset_payload = {
-        "sub": user.id,
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
-        "type": "reset_password",
-    }
-    reset_token = jwt.encode(reset_payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
+    # Generate 6-digit code
+    code = "".join(str(secrets.randbelow(10)) for _ in range(6))
+    expiration = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
     
-    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
-    reset_link = f"{frontend_url}/reset-password?token={reset_token}"
+    user.reset_code = code
+    user.reset_code_expires_at = expiration
+    await db.commit()
+    
+    # Aesthetic HTML Email
+    html_content = f"""
+    <div style="font-family: 'Inter', sans-serif; max-width: 500px; margin: 0 auto; background-color: #0f0f11; color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #27272a;">
+        <div style="padding: 32px; text-align: center; border-bottom: 1px solid #27272a; background: linear-gradient(180deg, rgba(168, 85, 247, 0.1) 0%, rgba(15, 15, 17, 0) 100%);">
+            <h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Gym<span style="color: #a855f7;">Nite</span></h1>
+        </div>
+        <div style="padding: 40px 32px;">
+            <h2 style="margin-top: 0; font-size: 18px; font-weight: 600;">Recuperación de contraseña</h2>
+            <p style="color: #a1a1aa; font-size: 14px; line-height: 1.6;">Hola {user.name}, recibimos una solicitud para restablecer tu contraseña. Ingresa el siguiente código de 6 dígitos en la aplicación:</p>
+            
+            <div style="margin: 32px 0; padding: 24px; background-color: #000000; border: 1px solid #27272a; border-radius: 12px; text-align: center;">
+                <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #c084fc;">{code}</span>
+            </div>
+            
+            <p style="color: #71717a; font-size: 12px; margin-bottom: 0;">Este código expirará en 15 minutos.</p>
+            <p style="color: #71717a; font-size: 12px; margin-top: 4px;">Si no fuiste tú, puedes ignorar este correo de forma segura.</p>
+        </div>
+    </div>
+    """
     
     try:
         resend.Emails.send({
             "from": email_from,
             "to": email,
-            "subject": "Gymnite - Recuperación de contraseña",
-            "html": f"<p>Hola {user.name},</p><p>Has solicitado recuperar tu contraseña. Haz clic en el enlace de abajo para crear una nueva:</p><p><a href='{reset_link}'>Restablecer contraseña</a></p><p>Este enlace expirará en 30 minutos.</p><p>Si no fuiste tú, ignora este correo.</p>"
+            "subject": "Gymnite - Tu código de recuperación",
+            "html": html_content
         })
     except Exception as e:
         logger.error(f"Error sending reset email: {e}")
         raise HTTPException(status_code=500, detail="Error enviando el correo de recuperación.")
         
-    return {"ok": True, "message": "Si el correo está registrado, se enviará un enlace de recuperación."}
+    return {"ok": True, "message": "Si el correo está registrado, se enviará un código de recuperación."}
 
 @api_router.post("/auth/reset-password")
 async def reset_password(payload: ResetPasswordIn, db: AsyncSession = Depends(get_db)):
-    try:
-        token_data = jwt.decode(payload.token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
-        if token_data.get("type") != "reset_password":
-            raise HTTPException(status_code=400, detail="Token inválido.")
-            
-        result = await db.execute(select(User).where(User.id == token_data["sub"]))
-        user = result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(status_code=404, detail="Usuario no encontrado.")
-            
-        user.password_hash = hash_password(payload.new_password)
-        await db.commit()
+    email = payload.email.lower().strip()
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    
+    if not user or not user.reset_code or user.reset_code != payload.code:
+        raise HTTPException(status_code=400, detail="El código es incorrecto.")
         
-        return {"ok": True, "message": "Contraseña actualizada exitosamente."}
-        
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=400, detail="El enlace ha expirado.")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=400, detail="El enlace es inválido.")
+    if user.reset_code_expires_at:
+        expiration = datetime.fromisoformat(user.reset_code_expires_at)
+        if datetime.now(timezone.utc) > expiration:
+            raise HTTPException(status_code=400, detail="El código ha expirado.")
+            
+    user.password_hash = hash_password(payload.new_password)
+    user.reset_code = None
+    user.reset_code_expires_at = None
+    await db.commit()
+    
+    return {"ok": True, "message": "Contraseña actualizada exitosamente."}
 
 @api_router.get("/auth/me", response_model=UserOut)
 async def me(user: User = Depends(get_current_user)):
