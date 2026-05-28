@@ -100,6 +100,22 @@ class PhysicalEvaluation(Base):
     muscle_mass_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+class Routine(Base):
+    __tablename__ = "routines"
+    id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String)
+    objective: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+class RoutineExercise(Base):
+    __tablename__ = "routine_exercises"
+    id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    routine_id: Mapped[str] = mapped_column(String, ForeignKey("routines.id"), index=True)
+    name: Mapped[str] = mapped_column(String)
+    sets: Mapped[int] = mapped_column(Integer)
+    reps: Mapped[int] = mapped_column(Integer)
+    rest_seconds: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
 # ----------------- Helpers -----------------
 async def get_db():
     async with AsyncSessionLocal() as session:
@@ -252,6 +268,21 @@ class PhysicalEvaluationIn(BaseModel):
 class PhysicalEvaluationOut(PhysicalEvaluationIn):
     id: str
     user_id: str
+
+class RoutineExerciseOut(BaseModel):
+    id: str
+    routine_id: str
+    name: str
+    sets: int
+    reps: int
+    rest_seconds: Optional[str] = None
+
+class RoutineOut(BaseModel):
+    id: str
+    user_id: str
+    name: str
+    objective: Optional[str] = None
+    exercises: List[RoutineExerciseOut] = []
 
 # ----------------- Auth Endpoints -----------------
 @api_router.post("/auth/register", response_model=UserOut)
@@ -623,6 +654,48 @@ async def add_evaluation(payload: PhysicalEvaluationIn, user: User = Depends(get
 async def get_my_evaluations(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(PhysicalEvaluation).where(PhysicalEvaluation.user_id == user.id).order_by(PhysicalEvaluation.date.asc()))
     return result.scalars().all()
+
+# ----------------- Routines -----------------
+@api_router.get("/routines/me", response_model=List[RoutineOut])
+async def get_my_routines(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Routine).where(Routine.user_id == user.id))
+    routines = result.scalars().all()
+    
+    if not routines:
+        # Create a default routine for demonstration if none exists
+        default_routine = Routine(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            name="Rutina Full Body (Demo)",
+            objective="Acondicionamiento General"
+        )
+        db.add(default_routine)
+        
+        exercises = [
+            RoutineExercise(id=str(uuid.uuid4()), routine_id=default_routine.id, name="Sentadillas libres", sets=4, reps=12, rest_seconds="60s"),
+            RoutineExercise(id=str(uuid.uuid4()), routine_id=default_routine.id, name="Press de Banca", sets=4, reps=10, rest_seconds="90s"),
+            RoutineExercise(id=str(uuid.uuid4()), routine_id=default_routine.id, name="Remo con barra", sets=4, reps=10, rest_seconds="90s"),
+            RoutineExercise(id=str(uuid.uuid4()), routine_id=default_routine.id, name="Plancha Abdominal", sets=3, reps=1, rest_seconds="45s")
+        ]
+        db.add_all(exercises)
+        await db.commit()
+        await db.refresh(default_routine)
+        routines = [default_routine]
+    
+    out = []
+    for r in routines:
+        ex_res = await db.execute(select(RoutineExercise).where(RoutineExercise.routine_id == r.id))
+        exercises = ex_res.scalars().all()
+        out.append(RoutineOut(
+            id=r.id,
+            user_id=r.user_id,
+            name=r.name,
+            objective=r.objective,
+            exercises=[RoutineExerciseOut(
+                id=e.id, routine_id=e.routine_id, name=e.name, sets=e.sets, reps=e.reps, rest_seconds=e.rest_seconds
+            ) for e in exercises]
+        ))
+    return out
 
 # ----------------- Health -----------------
 @api_router.get("/")
