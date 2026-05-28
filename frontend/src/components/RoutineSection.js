@@ -6,6 +6,7 @@ import api from "@/lib/api";
 export default function RoutineSection() {
   const [loading, setLoading] = useState(true);
   const [routines, setRoutines] = useState([]);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [completedExercises, setCompletedExercises] = useState({});
 
   useEffect(() => {
@@ -45,15 +46,16 @@ export default function RoutineSection() {
     );
   }
 
-  // For this version, we just show the first routine (the active one)
-  const activeRoutine = routines[0];
+  // Sort routines by name so they appear in order (Día 1, Día 2, etc.)
+  const sortedRoutines = [...routines].sort((a, b) => a.name.localeCompare(b.name));
+  const activeRoutine = sortedRoutines[activeIndex] || sortedRoutines[0];
   const progress = Math.round(
-    (Object.values(completedExercises).filter(Boolean).length / activeRoutine.exercises.length) * 100
+    (Object.values(completedExercises).filter(Boolean).length / (activeRoutine?.exercises?.length || 1)) * 100
   ) || 0;
 
   return (
     <div className="gn-card p-8 col-span-1 lg:col-span-2" data-testid="routine-section">
-      <div className="flex items-start justify-between mb-8 flex-wrap gap-4">
+      <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <Dumbbell className="h-5 w-5 text-purple-400" />
@@ -75,6 +77,25 @@ export default function RoutineSection() {
             />
           </div>
         </div>
+      </div>
+
+      <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+        {sortedRoutines.map((r, i) => (
+          <button
+            key={r.id}
+            onClick={() => {
+              setActiveIndex(i);
+              setCompletedExercises({}); // Reset completion when changing day
+            }}
+            className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-medium transition-all ${
+              activeIndex === i 
+                ? "bg-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]" 
+                : "bg-zinc-900/50 text-zinc-400 hover:text-white hover:bg-zinc-800"
+            }`}
+          >
+            {r.name.split(":")[0]} {/* Muestra solo "Día 1", "Día 2", etc. */}
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
