@@ -14,11 +14,7 @@ export default function AdminReservations() {
   const [reservations, setReservations] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  useEffect(() => {
-    fetchReservations();
-  }, [selectedDate]);
-
-  const fetchReservations = async () => {
+  const fetchReservations = React.useCallback(async () => {
     setLoading(true);
     const dateStr = selectedDate.toISOString().split("T")[0];
     try {
@@ -30,7 +26,11 @@ export default function AdminReservations() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDate]);
+
+  useEffect(() => {
+    fetchReservations();
+  }, [fetchReservations]);
 
   const grouped = reservations.reduce((acc, r) => {
     if (!acc[r.shift]) acc[r.shift] = [];
