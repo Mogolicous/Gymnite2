@@ -122,7 +122,6 @@ function PlanCard({ tier, selected, onSelect }) {
 export default function Dashboard() {
   const { user, setUser } = useAuth();
   const [selected, setSelected] = useState(null); // { months: X, type: 'pesas' }
-  const [selectedCategory, setSelectedCategory] = useState("pesas");
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(null);
   const [dismissing, setDismissing] = useState(false);
@@ -374,35 +373,35 @@ export default function Dashboard() {
                     </span>
                   </div>
 
-                  {/* CATEGORY TABS */}
-                  <div className="flex items-center gap-4 border-b border-zinc-800 mb-6 pb-0 overflow-x-auto scrollbar-hide">
+                  <div className="space-y-10">
                     {[
-                      { id: "pesas", label: "Gym (Pesas)" },
-                      { id: "clases", label: "Clases (Box)" },
-                      { id: "premium", label: "Premium (Todo)" },
+                      { id: "pesas", title: "Gym", desc: "Acceso completo al gimnasio" },
+                      { id: "clases", title: "Deportes de Combate", desc: "Acceso a las clases de box, muay thai, kickboxing" },
+                      { id: "premium", title: "Premium", desc: "Acceso completo a gimnasio y deportes de combate", highlight: true },
                     ].map((cat) => (
-                      <button
-                        key={cat.id}
-                        onClick={() => setSelectedCategory(cat.id)}
-                        className={`pb-3 px-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
-                          selectedCategory === cat.id
-                            ? "border-purple-500 text-purple-400"
-                            : "border-transparent text-zinc-500 hover:text-zinc-300"
-                        }`}
-                      >
-                        {cat.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                    {PLAN_TIERS[selectedCategory].map((t) => (
-                      <PlanCard
-                        key={t.months}
-                        tier={t}
-                        selected={false}
-                        onSelect={setSelected}
-                      />
+                      <div key={cat.id} className={cat.highlight ? "relative rounded-2xl border border-amber-500/50 bg-amber-500/5 p-6 -mx-6 sm:mx-0 sm:px-6" : ""}>
+                        {cat.highlight && (
+                          <div className="absolute -top-3 left-6 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] uppercase tracking-widest font-bold px-3 py-1 rounded-full shadow-lg shadow-orange-500/20">
+                            Recomendado
+                          </div>
+                        )}
+                        <div className="mb-5">
+                          <h3 className={`text-xl font-bold ${cat.highlight ? "text-amber-400" : "text-white"}`}>
+                            {cat.title}
+                          </h3>
+                          <p className="text-sm text-zinc-400 mt-1">{cat.desc}</p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                          {PLAN_TIERS[cat.id].map((t) => (
+                            <PlanCard
+                              key={t.months}
+                              tier={t}
+                              selected={false}
+                              onSelect={setSelected}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </motion.div>
