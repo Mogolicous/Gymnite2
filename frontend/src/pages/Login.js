@@ -89,6 +89,11 @@ export default function Login() {
                 className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-white placeholder:text-zinc-600 focus:outline-none focus:border-purple-500/60 focus:ring-2 focus:ring-purple-500/20 transition-all"
                 data-testid="login-password-input"
               />
+              <div className="flex justify-end mt-2">
+                <Link to="/forgot-password" className="text-xs text-purple-400 hover:text-purple-300">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
             </div>
 
             {error && (
