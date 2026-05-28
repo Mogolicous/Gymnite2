@@ -1,6 +1,8 @@
 import React, { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
+import AttendanceSection from "@/components/AttendanceSection";
+import PhysicalEvaluationSection from "@/components/PhysicalEvaluationSection";
 import { useAuth } from "@/context/AuthContext";
 import api, { formatApiError } from "@/lib/api";
 import { PLAN_TIERS, BANK_INFO, planByMonths } from "@/lib/plans";
@@ -536,6 +538,19 @@ export default function Dashboard() {
                 </motion.div>
               )}
             </AnimatePresence>
+          </motion.div>
+        )}
+
+        {/* Phase 1 Features for subscribed users */}
+        {status === "subscribed" && (
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+            className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-8"
+          >
+            <AttendanceSection />
+            <PhysicalEvaluationSection />
           </motion.div>
         )}
 
