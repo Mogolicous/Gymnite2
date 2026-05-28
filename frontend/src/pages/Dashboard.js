@@ -396,8 +396,8 @@ export default function Dashboard() {
                             <PlanCard
                               key={t.months}
                               tier={t}
-                              selected={false}
-                              onSelect={setSelected}
+                              selected={selected?.months === t.months && selected?.type === t.type}
+                              onSelect={() => setSelected(t)}
                             />
                           ))}
                         </div>
