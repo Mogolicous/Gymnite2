@@ -193,7 +193,10 @@ function ApprovalModal({ user, onClose, onApprove, onReject, actionLoading }) {
                 <div className="text-[10px] uppercase tracking-widest text-purple-400/80 mb-1">
                   Plan solicitado por el usuario
                 </div>
-                <div className="text-sm text-zinc-100">
+                <div className="text-sm text-zinc-100 flex items-center gap-2">
+                  <span className="font-semibold text-purple-200 uppercase text-[11px] tracking-wider px-2 py-0.5 rounded bg-purple-500/20">
+                    {user?.requested_plan_type === "pesas" ? "Gym" : user?.requested_plan_type === "clases" ? "Clases" : "Premium"}
+                  </span>
                   <span className="font-semibold">{requestedTier.label}</span> ·{" "}
                   <span className="text-purple-300">${requestedTier.price}</span>
                 </div>
