@@ -75,9 +75,11 @@ class User(Base):
     created_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     manual: Mapped[bool] = mapped_column(Boolean, default=False)
     plan_months: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    plan_type: Mapped[str] = mapped_column(String, default="pesas")
     plan_started_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     plan_expires_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     requested_plan_months: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    requested_plan_type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     last_admin_action: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     last_admin_action_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     reset_code: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -186,9 +188,11 @@ def serialize_user(u: User) -> dict:
         "created_at": u.created_at,
         "manual": u.manual,
         "plan_months": u.plan_months,
+        "plan_type": u.plan_type,
         "plan_started_at": u.plan_started_at,
         "plan_expires_at": u.plan_expires_at,
         "requested_plan_months": u.requested_plan_months,
+        "requested_plan_type": u.requested_plan_type,
         "last_admin_action": u.last_admin_action,
         "last_admin_action_at": u.last_admin_action_at,
     }
@@ -243,14 +247,17 @@ class UserOut(BaseModel):
     created_at: Optional[str] = None
     manual: bool = False
     plan_months: Optional[int] = None
+    plan_type: Optional[str] = "pesas"
     plan_started_at: Optional[str] = None
     plan_expires_at: Optional[str] = None
     requested_plan_months: Optional[int] = None
+    requested_plan_type: Optional[str] = None
     last_admin_action: Optional[str] = None
     last_admin_action_at: Optional[str] = None
 
 class ApproveIn(BaseModel):
-    plan_months: int = Field(..., description="Allowed values: 1, 3, 6, 12")
+    plan_months: int
+    plan_type: str = "pesas"
 
 class ForgotPasswordIn(BaseModel):
     email: EmailStr
@@ -453,6 +460,7 @@ async def dismiss_notification(user: User = Depends(get_current_user), db: Async
 async def upload_receipt(
     file: UploadFile = File(...),
     plan_months: Optional[int] = Form(None),
+    plan_type: Optional[str] = Form("pesas"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -460,6 +468,8 @@ async def upload_receipt(
         raise HTTPException(status_code=400, detail="Solo se permiten imágenes JPG")
     if plan_months is not None and plan_months not in (1, 3, 6, 12):
         raise HTTPException(status_code=400, detail="Plan inválido. Valores permitidos: 1, 3, 6, 12 meses")
+    if plan_type not in ("pesas", "clases", "premium"):
+        raise HTTPException(status_code=400, detail="Tipo de plan inválido")
     
     data = await file.read()
     if len(data) > 5 * 1024 * 1024:
@@ -475,6 +485,7 @@ async def upload_receipt(
     user.status = "pending"
     if plan_months is not None:
         user.requested_plan_months = plan_months
+    user.requested_plan_type = plan_type
         
     await db.commit()
     await db.refresh(user)
@@ -501,6 +512,8 @@ async def get_receipt(user_id: str, admin: User = Depends(require_admin), db: As
 async def approve_user(user_id: str, payload: ApproveIn, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
     if payload.plan_months not in (1, 3, 6, 12):
         raise HTTPException(status_code=400, detail="Duración inválida. Valores permitidos: 1, 3, 6 o 12 meses")
+    if payload.plan_type not in ("pesas", "clases", "premium"):
+        raise HTTPException(status_code=400, detail="Tipo de plan inválido")
     
     result = await db.execute(select(User).where(User.id == user_id))
     u = result.scalar_one_or_none()
@@ -515,10 +528,13 @@ async def approve_user(user_id: str, payload: ApproveIn, admin: User = Depends(r
     u.status = "subscribed"
     u.approved_at = now.isoformat()
     u.plan_months = payload.plan_months
+    u.plan_type = payload.plan_type
     u.plan_started_at = now.isoformat()
     u.plan_expires_at = expires.isoformat()
     u.last_admin_action = "approved"
     u.last_admin_action_at = now.isoformat()
+    u.requested_plan_months = None
+    u.requested_plan_type = None
     
     await db.commit()
     await db.refresh(u)
@@ -793,6 +809,14 @@ app.add_middleware(
 async def on_startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        try:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN plan_type VARCHAR DEFAULT 'pesas'"))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN requested_plan_type VARCHAR"))
+        except Exception:
+            pass
         
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@gymnite.com").lower().strip()
     admin_password = os.environ.get("ADMIN_PASSWORD", "12345")
