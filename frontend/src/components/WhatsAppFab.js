@@ -1,5 +1,6 @@
 import React from "react";
 import { buildWhatsAppLink, WHATSAPP_DEFAULT_MESSAGE } from "@/lib/contact";
+import { useLocation } from "react-router-dom";
 
 /* Inline SVG of the WhatsApp glyph (avoids extra icon dependency). */
 function WhatsAppGlyph({ className = "h-5 w-5" }) {
@@ -16,7 +17,13 @@ function WhatsAppGlyph({ className = "h-5 w-5" }) {
 }
 
 export default function WhatsAppFab() {
+  const location = useLocation();
   const href = buildWhatsAppLink(WHATSAPP_DEFAULT_MESSAGE);
+
+  if (location.pathname.startsWith("/admin")) {
+    return null;
+  }
+
   return (
     <a
       href={href}

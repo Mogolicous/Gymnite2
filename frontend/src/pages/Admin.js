@@ -739,12 +739,17 @@ export default function Admin() {
                           </span>
                           {u.status === "subscribed" && u.plan_months && (
                             <span
-                              className="text-[11px] text-zinc-400"
+                              className="text-[11px] text-zinc-400 flex items-center gap-1.5 flex-wrap mt-1"
                               data-testid={`row-plan-${u.id}`}
                             >
-                              {u.plan_months} {u.plan_months === 1 ? "mes" : "meses"} ·{" "}
-                              <span className="text-zinc-500">
-                                vence {formatDate(u.plan_expires_at)}
+                              <span className="font-semibold text-purple-200 uppercase text-[9px] tracking-wider px-1.5 py-0.5 rounded bg-purple-500/20">
+                                {u.plan_type === "clases" ? "Clases" : u.plan_type === "premium" ? "Premium" : "Gym"}
+                              </span>
+                              <span>
+                                {u.plan_months} {u.plan_months === 1 ? "mes" : "meses"} ·{" "}
+                                <span className="text-zinc-500">
+                                  vence {formatDate(u.plan_expires_at)}
+                                </span>
                               </span>
                             </span>
                           )}
