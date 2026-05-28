@@ -738,7 +738,7 @@ async def reserve_class(payload: ReservationIn, user: User = Depends(get_current
         user_id=user.id,
         date=payload.date,
         shift=payload.shift,
-        created_at=datetime.datetime.utcnow().isoformat()
+        created_at=datetime.now(timezone.utc).isoformat()
     )
     db.add(res)
     await db.commit()
