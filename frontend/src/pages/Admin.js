@@ -418,11 +418,11 @@ function AddUserModal({ onClose, onCreated }) {
             <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500/60 focus:ring-2 focus:ring-purple-500/20"
+              className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500/60 focus:ring-2 focus:ring-purple-500/20 appearance-none cursor-pointer"
             >
-              <option value="user">Usuario (Alumno)</option>
-              <option value="coach">Coach (Entrenador)</option>
-              <option value="admin">Administrador</option>
+              <option value="user" className="bg-zinc-900 text-white py-2">Usuario (Alumno)</option>
+              <option value="coach" className="bg-zinc-900 text-white py-2">Coach (Entrenador)</option>
+              <option value="admin" className="bg-zinc-900 text-white py-2">Administrador</option>
             </select>
           </div>
 
