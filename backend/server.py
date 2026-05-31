@@ -105,7 +105,7 @@ class PhysicalEvaluation(Base):
 class Routine(Base):
     __tablename__ = "routines"
     id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
-    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), index=True)
+    user_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("users.id"), index=True, nullable=True)
     name: Mapped[str] = mapped_column(String)
     objective: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
@@ -225,6 +225,11 @@ async def require_admin(user: User = Depends(get_current_user)) -> User:
         raise HTTPException(status_code=403, detail="Se requieren permisos de administrador")
     return user
 
+async def require_coach_or_admin(user: User = Depends(get_current_user)) -> User:
+    if user.role not in ["admin", "coach"]:
+        raise HTTPException(status_code=403, detail="Se requieren permisos de coach o administrador")
+    return user
+
 # ----------------- Models -----------------
 class RegisterIn(BaseModel):
     name: str = Field(min_length=2, max_length=80)
@@ -298,6 +303,17 @@ class RoutineOut(BaseModel):
     name: str
     objective: Optional[str] = None
     exercises: List[RoutineExerciseOut] = []
+
+class RoutineIn(BaseModel):
+    user_id: Optional[str] = None
+    name: str
+    objective: Optional[str] = None
+
+class RoutineExerciseIn(BaseModel):
+    name: str
+    sets: int
+    reps: int
+    rest_seconds: Optional[str] = None
 
 class ReservationIn(BaseModel):
     date: str
@@ -493,7 +509,7 @@ async def upload_receipt(
 
 # ----------------- Admin -----------------
 @api_router.get("/admin/users", response_model=List[UserOut])
-async def list_users(admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+async def get_all_users(user: User = Depends(require_coach_or_admin), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.role != "admin").order_by(User.created_at.desc()))
     users = result.scalars().all()
     return [serialize_user(u) for u in users]
@@ -702,15 +718,28 @@ async def get_my_evaluations(user: User = Depends(get_current_user), db: AsyncSe
 # ----------------- Routines -----------------
 @api_router.get("/routines/me", response_model=List[RoutineOut])
 async def get_my_routines(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Routine).where(Routine.user_id == user.id))
-    routines = result.scalars().all()
+    if user.plan_type == "premium":
+        # Premium users get custom routines
+        result = await db.execute(select(Routine).where(Routine.user_id == user.id))
+        routines = result.scalars().all()
+    else:
+        # Standard users get a random general routine
+        result = await db.execute(select(Routine).where(Routine.user_id == None))
+        general_routines = result.scalars().all()
+        if general_routines:
+            import random
+            from datetime import date
+            random.seed(date.today().toordinal())
+            routines = [random.choice(general_routines)]
+        else:
+            routines = []
     
     if not routines:
-        # Create a default routine for demonstration if none exists
+        # Create a default general routine if DB is empty
         default_routine = Routine(
             id=str(uuid.uuid4()),
-            user_id=user.id,
-            name="Rutina Full Body (Demo)",
+            user_id=None,
+            name="Rutina General Aleatoria (Demo)",
             objective="Acondicionamiento General"
         )
         db.add(default_routine)
@@ -732,7 +761,7 @@ async def get_my_routines(user: User = Depends(get_current_user), db: AsyncSessi
         exercises = ex_res.scalars().all()
         out.append(RoutineOut(
             id=r.id,
-            user_id=r.user_id,
+            user_id=r.user_id or "",
             name=r.name,
             objective=r.objective,
             exercises=[RoutineExerciseOut(
@@ -740,6 +769,53 @@ async def get_my_routines(user: User = Depends(get_current_user), db: AsyncSessi
             ) for e in exercises]
         ))
     return out
+
+@api_router.post("/routines", response_model=RoutineOut)
+async def create_routine(data: RoutineIn, user: User = Depends(require_coach_or_admin), db: AsyncSession = Depends(get_db)):
+    new_routine = Routine(id=str(uuid.uuid4()), user_id=data.user_id, name=data.name, objective=data.objective)
+    db.add(new_routine)
+    await db.commit()
+    await db.refresh(new_routine)
+    return RoutineOut(id=new_routine.id, user_id=new_routine.user_id or "", name=new_routine.name, objective=new_routine.objective, exercises=[])
+
+@api_router.post("/routines/{routine_id}/exercises", response_model=RoutineExerciseOut)
+async def add_routine_exercise(routine_id: str, data: RoutineExerciseIn, user: User = Depends(require_coach_or_admin), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Routine).where(Routine.id == routine_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Rutina no encontrada")
+    new_ex = RoutineExercise(id=str(uuid.uuid4()), routine_id=routine_id, name=data.name, sets=data.sets, reps=data.reps, rest_seconds=data.rest_seconds)
+    db.add(new_ex)
+    await db.commit()
+    await db.refresh(new_ex)
+    return new_ex
+
+@api_router.get("/routines/general", response_model=List[RoutineOut])
+async def get_general_routines(user: User = Depends(require_coach_or_admin), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Routine).where(Routine.user_id == None))
+    routines = result.scalars().all()
+    out = []
+    for r in routines:
+        ex_res = await db.execute(select(RoutineExercise).where(RoutineExercise.routine_id == r.id))
+        out.append(RoutineOut(id=r.id, user_id="", name=r.name, objective=r.objective, exercises=[RoutineExerciseOut(id=e.id, routine_id=e.routine_id, name=e.name, sets=e.sets, reps=e.reps, rest_seconds=e.rest_seconds) for e in ex_res.scalars().all()]))
+    return out
+
+@api_router.get("/routines/user/{user_id}", response_model=List[RoutineOut])
+async def get_user_routines(user_id: str, user: User = Depends(require_coach_or_admin), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Routine).where(Routine.user_id == user_id))
+    routines = result.scalars().all()
+    out = []
+    for r in routines:
+        ex_res = await db.execute(select(RoutineExercise).where(RoutineExercise.routine_id == r.id))
+        out.append(RoutineOut(id=r.id, user_id=r.user_id or "", name=r.name, objective=r.objective, exercises=[RoutineExerciseOut(id=e.id, routine_id=e.routine_id, name=e.name, sets=e.sets, reps=e.reps, rest_seconds=e.rest_seconds) for e in ex_res.scalars().all()]))
+    return out
+
+@api_router.delete("/routines/{routine_id}")
+async def delete_routine(routine_id: str, user: User = Depends(require_coach_or_admin), db: AsyncSession = Depends(get_db)):
+    await db.execute(delete(RoutineExercise).where(RoutineExercise.routine_id == routine_id))
+    await db.execute(delete(Routine).where(Routine.id == routine_id))
+    await db.commit()
+    return {"status": "ok"}
+
 
 # ----------------- Class Reservations -----------------
 @api_router.post("/classes/reserve", response_model=ReservationOut)
@@ -767,7 +843,7 @@ async def get_my_reservations(user: User = Depends(get_current_user), db: AsyncS
     return res.scalars().all()
 
 @api_router.get("/classes/admin/reservations", response_model=List[AdminReservationOut])
-async def get_all_reservations(date: str, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+async def get_all_reservations(date: str, admin: User = Depends(require_coach_or_admin), db: AsyncSession = Depends(get_db)):
     stmt = select(ClassReservation, User).outerjoin(User, ClassReservation.user_id == User.id).where(ClassReservation.date == date).order_by(ClassReservation.created_at.desc())
     result = await db.execute(stmt)
     out = []

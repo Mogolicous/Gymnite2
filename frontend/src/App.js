@@ -8,6 +8,7 @@ import Register from "@/pages/Register";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
+import CoachDashboard from "@/pages/CoachDashboard";
 import ForgotPassword from "@/pages/ForgotPassword";
 import WhatsAppFab from "@/components/WhatsAppFab";
 import { Toaster } from "sonner";
@@ -15,7 +16,11 @@ import { Toaster } from "sonner";
 function GuestOnly({ children }) {
   const { user, checked } = useAuth();
   if (!checked) return null;
-  if (user) return <Navigate to={user.role === "admin" ? "/admin" : "/dashboard"} replace />;
+  if (user) {
+    if (user.role === "admin") return <Navigate to="/admin" replace />;
+    if (user.role === "coach") return <Navigate to="/coach" replace />;
+    return <Navigate to="/dashboard" replace />;
+  }
   return children;
 }
 
@@ -61,6 +66,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute role="admin">
             <Admin />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/coach"
+        element={
+          <ProtectedRoute role="coach">
+            <CoachDashboard />
           </ProtectedRoute>
         }
       />
