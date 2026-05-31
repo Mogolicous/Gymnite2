@@ -302,6 +302,7 @@ function ApprovalModal({ user, onClose, onApprove, onReject, actionLoading }) {
 function AddUserModal({ onClose, onCreated }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState("user");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -335,6 +336,7 @@ function AddUserModal({ onClose, onCreated }) {
       const fd = new FormData();
       fd.append("name", name.trim());
       if (email.trim()) fd.append("email", email.trim());
+      fd.append("role", role);
       if (file) fd.append("file", file);
       const { data } = await api.post("/admin/users/manual", fd, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -407,6 +409,21 @@ function AddUserModal({ onClose, onCreated }) {
               className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-white placeholder:text-zinc-600 focus:outline-none focus:border-purple-500/60 focus:ring-2 focus:ring-purple-500/20"
               data-testid="add-user-email-input"
             />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 block">
+              Rol
+            </label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500/60 focus:ring-2 focus:ring-purple-500/20"
+            >
+              <option value="user">Usuario (Alumno)</option>
+              <option value="coach">Coach (Entrenador)</option>
+              <option value="admin">Administrador</option>
+            </select>
           </div>
 
           <div>

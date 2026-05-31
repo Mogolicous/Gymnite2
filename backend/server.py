@@ -584,6 +584,7 @@ async def reject_user(user_id: str, admin: User = Depends(require_admin), db: As
 async def create_manual_user(
     name: str = Form(...),
     email: Optional[str] = Form(None),
+    role: str = Form("user"),
     file: Optional[UploadFile] = File(None),
     admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db)
@@ -591,6 +592,9 @@ async def create_manual_user(
     name_clean = name.strip()
     if len(name_clean) < 2:
         raise HTTPException(status_code=400, detail="Nombre demasiado corto")
+    
+    if role not in ["user", "coach", "admin"]:
+        raise HTTPException(status_code=400, detail="Rol inválido")
     
     email_clean = (email or "").strip().lower() or None
     if email_clean:
@@ -620,7 +624,7 @@ async def create_manual_user(
         name=name_clean,
         email=email_clean,
         password_hash=None,
-        role="user",
+        role=role,
         status=status,
         receipt_image=receipt_b64,
         receipt_uploaded_at=receipt_at,
