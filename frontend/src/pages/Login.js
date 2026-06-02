@@ -3,16 +3,18 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { formatApiError } from "@/lib/api";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { LOGO_URL } from "@/lib/brand";
 import { toast } from "sonner";
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ email: localStorage.getItem("gymnite_remember_email") || "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(!!localStorage.getItem("gymnite_remember_email"));
 
   const onChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
@@ -21,6 +23,11 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
+      if (rememberMe) {
+        localStorage.setItem("gymnite_remember_email", form.email.trim());
+      } else {
+        localStorage.removeItem("gymnite_remember_email");
+      }
       const user = await login(form.email.trim(), form.password);
       toast.success("Sesión iniciada");
       navigate(user.role === "admin" ? "/admin" : "/dashboard");
@@ -79,17 +86,38 @@ export default function Login() {
               <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 block">
                 Contraseña
               </label>
-              <input
-                name="password"
-                type="password"
-                value={form.password}
-                onChange={onChange}
-                required
-                placeholder="••••••••"
-                className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-white placeholder:text-zinc-600 focus:outline-none focus:border-purple-500/60 focus:ring-2 focus:ring-purple-500/20 transition-all"
-                data-testid="login-password-input"
-              />
-              <div className="flex justify-end mt-2">
+              <div className="relative">
+                <input
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  value={form.password}
+                  onChange={onChange}
+                  required
+                  placeholder="••••••••"
+                  className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 pr-12 text-white placeholder:text-zinc-600 focus:outline-none focus:border-purple-500/60 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  data-testid="login-password-input"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <div className="flex justify-between items-center mt-3">
+                <label className="flex items-center gap-2 cursor-pointer group select-none">
+                  <div className="relative flex items-center justify-center h-4 w-4 rounded border border-zinc-700 bg-zinc-900 group-hover:border-purple-500 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="absolute opacity-0 w-full h-full cursor-pointer"
+                    />
+                    {rememberMe && <div className="w-2 h-2 rounded-[1px] bg-purple-500" />}
+                  </div>
+                  <span className="text-xs text-zinc-400 group-hover:text-zinc-300 transition-colors">Recordarme</span>
+                </label>
                 <Link to="/forgot-password" className="text-xs text-purple-400 hover:text-purple-300">
                   ¿Olvidaste tu contraseña?
                 </Link>
