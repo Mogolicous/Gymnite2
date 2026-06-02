@@ -924,7 +924,6 @@ async def on_startup():
         except Exception:
             pass
         try:
-        try:
             await conn.execute(text("ALTER TABLE users ADD COLUMN requested_plan_type VARCHAR"))
         except Exception:
             pass
