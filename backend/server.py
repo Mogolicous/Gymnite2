@@ -876,11 +876,8 @@ app.add_middleware(
     allow_origins=[
         os.environ.get("FRONTEND_URL", "http://localhost:3000"),
         "http://localhost:3000",
-        "https://gymnite2.vercel.app",
-        "https://gymnite.es",
-        "https://www.gymnite.es",
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.gymnite\.es",
+    allow_origin_regex=r"https://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
