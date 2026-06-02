@@ -747,29 +747,41 @@ export default function Admin() {
                         </span>
                       </td>
                       <td className="px-3 py-3.5">
-                        <div className="flex flex-col gap-1">
+                          <div className="flex flex-col gap-1">
                           <span
                             className={`inline-flex w-fit items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${STATUS_META[u.status]?.pill}`}
                             data-testid={`row-status-${u.id}`}
                           >
                             {STATUS_META[u.status]?.label}
                           </span>
-                          {u.status === "subscribed" && u.plan_months && (
-                            <span
-                              className="text-[11px] text-zinc-400 flex items-center gap-1.5 flex-wrap mt-1"
-                              data-testid={`row-plan-${u.id}`}
-                            >
-                              <span className="font-semibold text-purple-200 uppercase text-[9px] tracking-wider px-1.5 py-0.5 rounded bg-purple-500/20">
-                                {u.plan_type === "clases" ? "Clases" : u.plan_type === "premium" ? "Premium" : "Gym"}
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            {u.role === "coach" && (
+                              <span className="font-semibold text-blue-200 uppercase text-[9px] tracking-wider px-1.5 py-0.5 rounded bg-blue-500/20 border border-blue-500/30">
+                                Coach
                               </span>
-                              <span>
-                                {u.plan_months} {u.plan_months === 1 ? "mes" : "meses"} ·{" "}
-                                <span className="text-zinc-500">
-                                  vence {formatDate(u.plan_expires_at)}
+                            )}
+                            {u.role === "admin" && (
+                              <span className="font-semibold text-red-200 uppercase text-[9px] tracking-wider px-1.5 py-0.5 rounded bg-red-500/20 border border-red-500/30">
+                                Admin
+                              </span>
+                            )}
+                            {u.status === "subscribed" && u.plan_months && (
+                              <span
+                                className="text-[11px] text-zinc-400 flex items-center gap-1.5 flex-wrap"
+                                data-testid={`row-plan-${u.id}`}
+                              >
+                                <span className="font-semibold text-purple-200 uppercase text-[9px] tracking-wider px-1.5 py-0.5 rounded bg-purple-500/20">
+                                  {u.plan_type === "clases" ? "Clases" : u.plan_type === "premium" ? "Premium" : "Gym"}
+                                </span>
+                                <span>
+                                  {u.plan_months} {u.plan_months === 1 ? "mes" : "meses"} ·{" "}
+                                  <span className="text-zinc-500">
+                                    vence {formatDate(u.plan_expires_at)}
+                                  </span>
                                 </span>
                               </span>
-                            </span>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="hidden sm:table-cell px-3 py-3.5">
