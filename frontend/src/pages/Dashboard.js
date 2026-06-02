@@ -1,4 +1,5 @@
 import React, { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import AttendanceSection from "@/components/AttendanceSection";
@@ -120,11 +121,15 @@ function PlanCard({ tier, selected, onSelect }) {
 }
 
 export default function Dashboard() {
-  const { user, setUser } = useAuth();
+  const { user, setUser, logout } = useAuth();
+  const navigate = useNavigate();
   const [selected, setSelected] = useState(null); // { months: X, type: 'pesas' }
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(null);
   const [dismissing, setDismissing] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailForm, setEmailForm] = useState({ newEmail: "", password: "" });
+  const [emailSubmitting, setEmailSubmitting] = useState(false);
   const inputRef = useRef(null);
 
   const status = user?.status || "no_subscribed";
@@ -141,6 +146,25 @@ export default function Dashboard() {
       toast.error(formatApiError(err));
     } finally {
       setDismissing(false);
+    }
+  };
+
+  const handleEmailChange = async (e) => {
+    e.preventDefault();
+    setEmailSubmitting(true);
+    try {
+      await api.post("/me/change-email", {
+        new_email: emailForm.newEmail,
+        current_password: emailForm.password,
+      });
+      toast.success("Correo actualizado. Por favor inicia sesión nuevamente.");
+      setShowEmailModal(false);
+      await logout();
+      navigate("/login");
+    } catch (err) {
+      toast.error(formatApiError(err));
+    } finally {
+      setEmailSubmitting(false);
     }
   };
 
@@ -604,7 +628,15 @@ export default function Dashboard() {
           className="mt-10 gn-card p-8"
           data-testid="account-info"
         >
-          <h3 className="text-lg font-semibold mb-5">Información de la cuenta</h3>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5">
+            <h3 className="text-lg font-semibold">Información de la cuenta</h3>
+            <button 
+              onClick={() => setShowEmailModal(true)}
+              className="mt-2 sm:mt-0 text-sm text-purple-400 hover:text-purple-300 transition-colors"
+            >
+              Cambiar correo
+            </button>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
             <div>
               <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">
@@ -616,11 +648,95 @@ export default function Dashboard() {
               <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">
                 Email
               </div>
-              <div className="text-zinc-100">{user?.email}</div>
+              <div className="flex items-center gap-2 text-zinc-100">
+                {user?.email}
+                <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full border border-zinc-700">
+                  {user?.email_changes_count || 0}/3 Cambios
+                </span>
+              </div>
             </div>
           </div>
         </motion.div>
       </div>
+
+      {/* Change Email Modal */}
+      <AnimatePresence>
+        {showEmailModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-[#0f0f11] rounded-2xl border border-zinc-800 p-6 relative overflow-hidden"
+            >
+              <button
+                onClick={() => setShowEmailModal(false)}
+                className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              
+              <h2 className="text-xl font-bold text-white mb-2">Cambiar Correo Electrónico</h2>
+              
+              <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-sm text-amber-300">
+                <AlertCircle className="h-5 w-5 mb-2" />
+                <p className="font-medium mb-1">Cierre de sesión obligatorio</p>
+                <p className="text-amber-400/80">Por razones de seguridad, tu sesión se cerrará automáticamente al realizar el cambio. Llevas {user?.email_changes_count || 0} de 3 cambios permitidos. Sé cuidadoso.</p>
+              </div>
+
+              <form onSubmit={handleEmailChange} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">
+                    Nuevo Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={emailForm.newEmail}
+                    onChange={(e) => setEmailForm({ ...emailForm, newEmail: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all outline-none"
+                    placeholder="nuevo@correo.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">
+                    Contraseña Actual
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={emailForm.password}
+                    onChange={(e) => setEmailForm({ ...emailForm, password: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all outline-none"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div className="pt-2 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowEmailModal(false)}
+                    className="px-5 py-2.5 rounded-full text-sm font-medium text-zinc-400 hover:text-white transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={emailSubmitting}
+                    className="gn-btn-primary disabled:opacity-50"
+                  >
+                    {emailSubmitting ? "Actualizando..." : "Confirmar Cambio"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -84,6 +84,7 @@ class User(Base):
     last_admin_action_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     reset_code: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     reset_code_expires_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    email_changes_count: Mapped[int] = mapped_column(Integer, default=0)
 
 class Attendance(Base):
     __tablename__ = "attendance"
@@ -195,6 +196,7 @@ def serialize_user(u: User) -> dict:
         "requested_plan_type": u.requested_plan_type,
         "last_admin_action": u.last_admin_action,
         "last_admin_action_at": u.last_admin_action_at,
+        "email_changes_count": u.email_changes_count,
     }
 
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
@@ -335,6 +337,10 @@ class AdminReservationOut(BaseModel):
     user_email: Optional[str] = None
     created_at: str
 
+class ChangeEmailIn(BaseModel):
+    new_email: EmailStr
+    current_password: str = Field(min_length=1)
+
 # ----------------- Auth Endpoints -----------------
 @api_router.post("/auth/register", response_model=UserOut)
 async def register(payload: RegisterIn, response: Response, db: AsyncSession = Depends(get_db)):
@@ -469,6 +475,31 @@ async def dismiss_notification(user: User = Depends(get_current_user), db: Async
     user.last_admin_action_at = None
     await db.commit()
     await db.refresh(user)
+    return serialize_user(user)
+
+@api_router.post("/me/change-email", response_model=UserOut)
+async def change_email(payload: ChangeEmailIn, response: Response, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=401, detail="La contraseña actual es incorrecta.")
+        
+    if user.email_changes_count >= 3:
+        raise HTTPException(status_code=400, detail="Has alcanzado el límite máximo de 3 cambios de correo por cuenta por seguridad.")
+        
+    new_email_clean = payload.new_email.lower().strip()
+    if new_email_clean == user.email:
+        raise HTTPException(status_code=400, detail="El nuevo correo es igual al actual.")
+        
+    result = await db.execute(select(User).where(User.email == new_email_clean))
+    existing = result.scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=400, detail="El correo ingresado ya está en uso.")
+        
+    user.email = new_email_clean
+    user.email_changes_count += 1
+    await db.commit()
+    await db.refresh(user)
+    
+    clear_auth_cookies(response)
     return serialize_user(user)
 
 # ----------------- Receipts -----------------
@@ -893,7 +924,12 @@ async def on_startup():
         except Exception:
             pass
         try:
+        try:
             await conn.execute(text("ALTER TABLE users ADD COLUMN requested_plan_type VARCHAR"))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN email_changes_count INTEGER DEFAULT 0"))
         except Exception:
             pass
         
