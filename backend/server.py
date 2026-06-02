@@ -919,18 +919,25 @@ app.add_middleware(
 async def on_startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+    async with engine.connect() as conn:
         try:
             await conn.execute(text("ALTER TABLE users ADD COLUMN plan_type VARCHAR DEFAULT 'pesas'"))
+            await conn.commit()
         except Exception:
-            pass
+            await conn.rollback()
+            
         try:
             await conn.execute(text("ALTER TABLE users ADD COLUMN requested_plan_type VARCHAR"))
+            await conn.commit()
         except Exception:
-            pass
+            await conn.rollback()
+            
         try:
             await conn.execute(text("ALTER TABLE users ADD COLUMN email_changes_count INTEGER DEFAULT 0"))
+            await conn.commit()
         except Exception:
-            pass
+            await conn.rollback()
         
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@gymnite.com").lower().strip()
     admin_password = os.environ.get("ADMIN_PASSWORD", "12345")
