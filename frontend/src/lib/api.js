@@ -11,6 +11,10 @@ const api = axios.create({
 export default api;
 
 export function formatApiError(err) {
+  if (err?.message === "Network Error") {
+    return "El servidor se está reiniciando o actualizando. Por favor, espera 1 o 2 minutos e intenta de nuevo.";
+  }
+  
   const detail = err?.response?.data?.detail;
   if (detail == null) return err?.message || "Algo salió mal. Intenta de nuevo.";
   if (typeof detail === "string") return detail;
