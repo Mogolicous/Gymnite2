@@ -30,6 +30,12 @@ async def main(email: str):
             return
             
         user.role = "coach"
+        user.status = "subscribed"
+        user.plan_months = None
+        user.plan_expires_at = None
+        user.plan_started_at = None
+        user.plan_type = "premium"
+        
         await session.commit()
         print(f"¡Éxito! El usuario {user.name} ({email}) ahora tiene el rol de COACH.")
 

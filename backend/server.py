@@ -604,7 +604,7 @@ async def create_manual_user(
 
     receipt_b64 = None
     receipt_at = None
-    status = "no_subscribed"
+    status = "subscribed" if role in ["coach", "admin"] else "no_subscribed"
     
     if file is not None:
         if file.content_type not in ("image/jpeg", "image/jpg"):
