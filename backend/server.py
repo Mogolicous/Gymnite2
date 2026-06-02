@@ -32,7 +32,7 @@ database_url = os.environ.get("DATABASE_URL", "postgresql+asyncpg://postgres:pos
 
 # Resend config
 resend.api_key = os.environ.get("RESEND_API_KEY", "")
-email_from = os.environ.get("EMAIL_FROM", "onboarding@resend.dev")
+email_from = os.environ.get("EMAIL_FROM", "GymNite Soporte <soporte@gymnite.es>")
 
 # Fix for Neon and other cloud providers that give 'postgres://'
 if database_url.startswith("postgres://"):
