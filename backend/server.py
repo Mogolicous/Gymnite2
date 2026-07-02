@@ -987,6 +987,22 @@ async def set_active_general_routine(routine_id: str, user: User = Depends(requi
 # ----------------- Class Reservations -----------------
 @api_router.post("/classes/reserve", response_model=ReservationOut)
 async def reserve_class(payload: ReservationIn, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    from datetime import date, datetime, timedelta
+    
+    # Check if reserving for a shift that already passed today (Assuming GMT-5 / Peru Time)
+    now_local = datetime.utcnow() - timedelta(hours=5)
+    today_str = now_local.date().isoformat()
+    
+    if payload.date < today_str:
+        raise HTTPException(status_code=400, detail="No puedes reservar para días pasados.")
+        
+    if payload.date == today_str:
+        current_hour = now_local.hour
+        if payload.shift == "mañana" and current_hour >= 11:
+            raise HTTPException(status_code=400, detail="El turno de la mañana de hoy ya finalizó.")
+        if payload.shift == "tarde" and current_hour >= 20:
+            raise HTTPException(status_code=400, detail="El turno de la tarde de hoy ya finalizó.")
+
     # Check if already reserved
     existing = await db.execute(select(ClassReservation).where(ClassReservation.user_id == user.id, ClassReservation.date == payload.date, ClassReservation.shift == payload.shift))
     if existing.scalars().first():
