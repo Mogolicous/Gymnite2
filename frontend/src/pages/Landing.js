@@ -5,6 +5,7 @@ import { ArrowRight, Sparkles, Dumbbell, Layout, Palette, Users, Activity, Brain
 import Navbar from "@/components/Navbar";
 import HeroCarousel from "@/components/HeroCarousel";
 import SocialLinks from "@/components/SocialLinks";
+import WhatsAppFab from "@/components/WhatsAppFab";
 import { buildWhatsAppLink, LOCATION } from "@/lib/contact";
 
 const BENEFITS = [
@@ -477,6 +478,7 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+      <WhatsAppFab />
     </div>
   );
 }
