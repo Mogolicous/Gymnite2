@@ -938,7 +938,15 @@ async def get_user_routines(user_id: str, user: User = Depends(require_coach_or_
     return out
 
 @api_router.delete("/routines/{routine_id}")
-async def delete_routine(routine_id: str, user: User = Depends(require_coach_or_admin), db: AsyncSession = Depends(get_db)):
+async def delete_routine(routine_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Routine).where(Routine.id == routine_id))
+    routine = result.scalar_one_or_none()
+    if not routine:
+        raise HTTPException(status_code=404, detail="Rutina no encontrada")
+        
+    if routine.user_id != user.id and user.role not in ["admin", "coach"]:
+        raise HTTPException(status_code=403, detail="No tienes permisos para borrar esta rutina")
+        
     await db.execute(delete(RoutineExercise).where(RoutineExercise.routine_id == routine_id))
     await db.execute(delete(Routine).where(Routine.id == routine_id))
     await db.commit()
