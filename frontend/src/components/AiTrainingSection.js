@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Sparkles, Loader2, Check, ArrowRight, Trash2 } from "lucide-react";
+import { Sparkles, Loader2, Check, ArrowRight, Trash2, Settings2, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -11,6 +11,17 @@ export default function AiTrainingSection() {
   const [routines, setRoutines] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [completedExercises, setCompletedExercises] = useState({});
+  
+  // Advanced Settings State
+  const [showSettings, setShowSettings] = useState(false);
+  const [level, setLevel] = useState("Intermedio");
+  const [time, setTime] = useState("Normal (45-60m)");
+  const [goal, setGoal] = useState("Hipertrofia");
+  const [injuries, setInjuries] = useState("");
+
+  const levels = ["Principiante", "Intermedio", "Avanzado"];
+  const times = ["Express (20-30m)", "Normal (45-60m)", "Completo (1.5h+)"];
+  const goals = ["Hipertrofia", "Fuerza", "Resistencia", "Pérdida de Peso"];
 
   useEffect(() => {
     fetchAiRoutines();
@@ -39,7 +50,13 @@ export default function AiTrainingSection() {
     
     setGenerating(true);
     try {
-      await api.post("/routines/generate-ai", { muscle });
+      await api.post("/routines/generate-ai", { 
+        muscle,
+        level,
+        time,
+        goal,
+        injuries
+      });
       toast.success("¡Rutina generada con éxito!");
       setMuscle("");
       await fetchAiRoutines();
@@ -90,32 +107,122 @@ export default function AiTrainingSection() {
             <div className="bg-amber-500/20 p-2 rounded-lg">
               <Sparkles className="h-5 w-5 text-amber-400" />
             </div>
-            <h3 className="text-xl font-semibold bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent">AI Training</h3>
+            <h3 className="text-xl font-semibold bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent">AI Training PRO</h3>
           </div>
           <p className="text-zinc-400 text-sm mt-2 max-w-md">
-            Genera entrenamientos hiper-personalizados con Inteligencia Artificial.
+            Genera entrenamientos hiper-personalizados como si tuvieras un entrenador élite.
           </p>
         </div>
       </div>
 
-      <form onSubmit={handleGenerate} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-8">
-        <input
-          type="text"
-          value={muscle}
-          onChange={(e) => setMuscle(e.target.value)}
-          placeholder="Ej: Espalda y Bíceps"
-          disabled={generating}
-          className="flex-1 bg-black/50 border border-zinc-800 focus:border-amber-500/50 rounded-xl px-4 py-3 text-white transition-all outline-none"
-        />
-        <button
-          type="submit"
-          disabled={generating || !muscle.trim()}
-          className="bg-amber-500 hover:bg-amber-400 text-black font-bold py-3 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] whitespace-nowrap"
-        >
-          {generating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-          Generar
-        </button>
-      </form>
+      <div className="mb-8">
+        <form onSubmit={handleGenerate} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
+          <input
+            type="text"
+            value={muscle}
+            onChange={(e) => setMuscle(e.target.value)}
+            placeholder="Ej: Espalda y Bíceps"
+            disabled={generating}
+            className="flex-1 bg-black/50 border border-zinc-800 focus:border-amber-500/50 rounded-xl px-4 py-3 text-white transition-all outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => setShowSettings(!showSettings)}
+            className={`px-4 py-3 rounded-xl border flex items-center justify-center gap-2 transition-all ${
+              showSettings ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-black/50 border-zinc-800 text-zinc-400 hover:text-white"
+            }`}
+          >
+            <Settings2 className="h-5 w-5" />
+            <span className="sm:hidden">Ajustes</span>
+          </button>
+          <button
+            type="submit"
+            disabled={generating || !muscle.trim()}
+            className="bg-amber-500 hover:bg-amber-400 text-black font-bold py-3 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] whitespace-nowrap"
+          >
+            {generating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+            Generar
+          </button>
+        </form>
+
+        <AnimatePresence>
+          {showSettings && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="bg-black/30 border border-zinc-800/50 rounded-2xl p-5 space-y-6">
+                
+                {/* Level Selectors */}
+                <div>
+                  <div className="text-xs uppercase tracking-widest text-zinc-500 font-semibold mb-3">Nivel de Experiencia</div>
+                  <div className="flex flex-wrap gap-2">
+                    {levels.map(l => (
+                      <button
+                        key={l}
+                        type="button"
+                        onClick={() => setLevel(l)}
+                        className={`px-4 py-1.5 rounded-full text-sm transition-all ${level === l ? "bg-amber-500 text-black font-medium shadow-[0_0_10px_rgba(245,158,11,0.3)]" : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:border-zinc-700"}`}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Goal Selectors */}
+                <div>
+                  <div className="text-xs uppercase tracking-widest text-zinc-500 font-semibold mb-3">Objetivo Principal</div>
+                  <div className="flex flex-wrap gap-2">
+                    {goals.map(g => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => setGoal(g)}
+                        className={`px-4 py-1.5 rounded-full text-sm transition-all ${goal === g ? "bg-amber-500 text-black font-medium shadow-[0_0_10px_rgba(245,158,11,0.3)]" : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:border-zinc-700"}`}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Time Selectors */}
+                <div>
+                  <div className="text-xs uppercase tracking-widest text-zinc-500 font-semibold mb-3">Tiempo Disponible</div>
+                  <div className="flex flex-wrap gap-2">
+                    {times.map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setTime(t)}
+                        className={`px-4 py-1.5 rounded-full text-sm transition-all ${time === t ? "bg-amber-500 text-black font-medium shadow-[0_0_10px_rgba(245,158,11,0.3)]" : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:border-zinc-700"}`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Injuries */}
+                <div>
+                  <div className="text-xs uppercase tracking-widest text-zinc-500 font-semibold mb-3">Lesiones o Limitaciones (Opcional)</div>
+                  <input
+                    type="text"
+                    value={injuries}
+                    onChange={(e) => setInjuries(e.target.value)}
+                    placeholder="Ej: Dolor en rodilla derecha, molestia en hombro..."
+                    className="w-full bg-zinc-900 border border-zinc-800 focus:border-amber-500/50 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none"
+                  />
+                </div>
+
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {routines.length > 0 && (
         <>

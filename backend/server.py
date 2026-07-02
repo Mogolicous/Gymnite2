@@ -323,6 +323,10 @@ class RoutineExerciseIn(BaseModel):
 
 class GenerateRoutineIn(BaseModel):
     muscle: str = Field(..., min_length=2, max_length=50)
+    level: str = "Intermedio"
+    time: str = "Normal (45m)"
+    goal: str = "Hipertrofia"
+    injuries: Optional[str] = None
 
 class ReservationIn(BaseModel):
     date: str
@@ -820,12 +824,24 @@ async def generate_ai_routine(payload: GenerateRoutineIn, user: User = Depends(g
     client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
     
     prompt = f"""
-    Eres un entrenador personal experto. El usuario quiere entrenar: {payload.muscle}.
-    Genera una rutina de exactamente 5 ejercicios para este objetivo.
+    Eres un entrenador personal experto de élite. Crea una rutina de exactamente 5 ejercicios basada estrictamente en estos parámetros:
+    - Músculo(s) Objetivo: {payload.muscle}
+    - Nivel del Usuario: {payload.level}
+    - Tiempo Disponible: {payload.time}
+    - Objetivo Principal: {payload.goal}
+    - Lesiones/Limitaciones: {payload.injuries if payload.injuries else "Ninguna"}
+
+    REGLAS ESTRICTAS:
+    1. Si es "Principiante", usa máquinas, ejercicios simples y menos series.
+    2. Si es "Avanzado", incluye pesos libres, superseries y ejercicios complejos.
+    3. Si el tiempo es "Express", asigna súper-series (circuitos) y descansos muy cortos (30s).
+    4. Si el objetivo es "Fuerza", asigna rangos de 3-5 reps con descansos largos (2-3 min).
+    5. EVITA POR COMPLETO ejercicios que afecten negativamente la zona mencionada en "Lesiones".
+    
     Responde ÚNICAMENTE con un objeto JSON válido con esta estructura exacta, sin markdown, sin texto adicional:
     {{
       "name": "AI: {payload.muscle}",
-      "objective": "Hipertrofia / Fuerza",
+      "objective": "{payload.goal} - {payload.level}",
       "exercises": [
         {{"name": "Nombre Ejercicio 1", "sets": 4, "reps": 12, "rest_seconds": "60s"}},
         ... 4 ejercicios más ...
