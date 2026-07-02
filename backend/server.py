@@ -837,6 +837,7 @@ async def generate_ai_routine(payload: GenerateRoutineIn, user: User = Depends(g
     3. Si el tiempo es "Express", asigna súper-series (circuitos) y descansos muy cortos (30s).
     4. Si el objetivo es "Fuerza", asigna rangos de 3-5 reps con descansos largos (2-3 min).
     5. EVITA POR COMPLETO ejercicios que afecten negativamente la zona mencionada en "Lesiones".
+    6. Si incluyes ejercicios de CARDIO (bicicleta, caminadora, elíptica), asigna `sets` a 1 y usa el campo `reps` para indicar el número de MINUTOS (ej. reps: 15, reps: 20).
     
     Responde ÚNICAMENTE con un objeto JSON válido con esta estructura exacta, sin markdown, sin texto adicional:
     {{

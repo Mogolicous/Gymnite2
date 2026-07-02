@@ -300,7 +300,10 @@ export default function AiTrainingSection() {
                           {ex.name}
                         </h5>
                         <p className="text-xs text-zinc-500 mt-1 uppercase tracking-wider font-semibold">
-                          {ex.sets} Series × {ex.reps} Reps
+                          {ex.sets === 1 && ex.reps > 4 
+                            ? `${ex.reps} MINUTOS` 
+                            : `${ex.sets} Series × ${ex.reps} Reps`
+                          }
                         </p>
                       </div>
                     </div>

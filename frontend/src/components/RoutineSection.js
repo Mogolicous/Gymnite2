@@ -121,14 +121,23 @@ export default function RoutineSection() {
                   </h5>
                   
                   <div className="flex items-center gap-4 text-sm">
-                    <div className="flex flex-col">
-                      <span className="text-zinc-500 text-[10px] uppercase tracking-widest">Series</span>
-                      <span className="font-semibold text-white">{ex.sets}</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-zinc-500 text-[10px] uppercase tracking-widest">Reps</span>
-                      <span className="font-semibold text-white">{ex.reps}</span>
-                    </div>
+                    {ex.sets === 1 && ex.reps > 4 ? (
+                      <div className="flex flex-col">
+                        <span className="text-zinc-500 text-[10px] uppercase tracking-widest">Duración</span>
+                        <span className="font-semibold text-white">{ex.reps} MIN</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-col">
+                          <span className="text-zinc-500 text-[10px] uppercase tracking-widest">Series</span>
+                          <span className="font-semibold text-white">{ex.sets}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-zinc-500 text-[10px] uppercase tracking-widest">Reps</span>
+                          <span className="font-semibold text-white">{ex.reps}</span>
+                        </div>
+                      </>
+                    )}
                     {ex.rest_seconds && (
                       <div className="flex flex-col">
                         <span className="text-zinc-500 text-[10px] uppercase tracking-widest">Descanso</span>
