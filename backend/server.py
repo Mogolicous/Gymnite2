@@ -998,10 +998,12 @@ async def reserve_class(payload: ReservationIn, user: User = Depends(get_current
         
     if payload.date == today_str:
         current_hour = now_local.hour
-        if payload.shift == "mañana" and current_hour >= 11:
+        if payload.shift == "morning" and current_hour >= 11:
             raise HTTPException(status_code=400, detail="El turno de la mañana de hoy ya finalizó.")
-        if payload.shift == "tarde" and current_hour >= 20:
+        if payload.shift == "evening" and current_hour >= 20:
             raise HTTPException(status_code=400, detail="El turno de la tarde de hoy ya finalizó.")
+        if payload.shift == "saturday" and current_hour >= 23:
+            raise HTTPException(status_code=400, detail="El turno de hoy ya finalizó.")
 
     # Check if already reserved
     existing = await db.execute(select(ClassReservation).where(ClassReservation.user_id == user.id, ClassReservation.date == payload.date, ClassReservation.shift == payload.shift))
