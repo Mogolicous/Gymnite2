@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import AttendanceSection from "@/components/AttendanceSection";
 import PhysicalEvaluationSection from "@/components/PhysicalEvaluationSection";
 import RoutineSection from "@/components/RoutineSection";
+import AiTrainingSection from "@/components/AiTrainingSection";
 import BookingSection from "@/components/BookingSection";
 import { useAuth } from "@/context/AuthContext";
 import api, { formatApiError } from "@/lib/api";
@@ -602,6 +603,7 @@ export default function Dashboard() {
                 className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-8"
               >
                 <RoutineSection />
+                <AiTrainingSection />
                 <AttendanceSection />
                 <PhysicalEvaluationSection />
               </motion.div>

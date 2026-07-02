@@ -11,6 +11,7 @@ import base64
 import bcrypt
 import jwt
 import resend
+import openai
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
@@ -33,6 +34,9 @@ database_url = os.environ.get("DATABASE_URL", "postgresql+asyncpg://postgres:pos
 # Resend config
 resend.api_key = os.environ.get("RESEND_API_KEY", "")
 email_from = os.environ.get("EMAIL_FROM", "GymNite Soporte <soporte@gymnite.es>")
+
+# OpenAI config
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
 # Fix for Neon and other cloud providers that give 'postgres://'
 if database_url.startswith("postgres://"):
@@ -316,6 +320,9 @@ class RoutineExerciseIn(BaseModel):
     sets: int
     reps: int
     rest_seconds: Optional[str] = None
+
+class GenerateRoutineIn(BaseModel):
+    muscle: str = Field(..., min_length=2, max_length=50)
 
 class ReservationIn(BaseModel):
     date: str
@@ -804,6 +811,75 @@ async def get_my_routines(user: User = Depends(get_current_user), db: AsyncSessi
             ) for e in exercises]
         ))
     return out
+
+@api_router.post("/routines/generate-ai", response_model=RoutineOut)
+async def generate_ai_routine(payload: GenerateRoutineIn, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not OPENAI_API_KEY:
+        raise HTTPException(status_code=500, detail="OpenAI API Key no configurada en el servidor")
+        
+    client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
+    
+    prompt = f"""
+    Eres un entrenador personal experto. El usuario quiere entrenar: {payload.muscle}.
+    Genera una rutina de exactamente 5 ejercicios para este objetivo.
+    Responde ÚNICAMENTE con un objeto JSON válido con esta estructura exacta, sin markdown, sin texto adicional:
+    {{
+      "name": "AI: {payload.muscle}",
+      "objective": "Hipertrofia / Fuerza",
+      "exercises": [
+        {{"name": "Nombre Ejercicio 1", "sets": 4, "reps": 12, "rest_seconds": "60s"}},
+        ... 4 ejercicios más ...
+      ]
+    }}
+    """
+    
+    try:
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"}
+        )
+        content = response.choices[0].message.content
+        import json
+        data = json.loads(content)
+        
+        new_routine = Routine(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            name=f"AI: {payload.muscle.title().strip()}",
+            objective=data.get("objective", "Entrenamiento generado por IA")
+        )
+        db.add(new_routine)
+        
+        exercises_out = []
+        for ex in data.get("exercises", [])[:5]:
+            new_ex = RoutineExercise(
+                id=str(uuid.uuid4()),
+                routine_id=new_routine.id,
+                name=ex.get("name", "Ejercicio"),
+                sets=ex.get("sets", 3),
+                reps=ex.get("reps", 10),
+                rest_seconds=ex.get("rest_seconds", "60s")
+            )
+            db.add(new_ex)
+            exercises_out.append(new_ex)
+            
+        await db.commit()
+        await db.refresh(new_routine)
+        
+        return RoutineOut(
+            id=new_routine.id,
+            user_id=new_routine.user_id or "",
+            name=new_routine.name,
+            objective=new_routine.objective,
+            exercises=[RoutineExerciseOut(
+                id=e.id, routine_id=e.routine_id, name=e.name, sets=e.sets, reps=e.reps, rest_seconds=e.rest_seconds
+            ) for e in exercises_out]
+        )
+        
+    except Exception as e:
+        logger.error(f"Error generando rutina IA: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error al generar la rutina con IA")
 
 @api_router.post("/routines", response_model=RoutineOut)
 async def create_routine(data: RoutineIn, user: User = Depends(require_coach_or_admin), db: AsyncSession = Depends(get_db)):

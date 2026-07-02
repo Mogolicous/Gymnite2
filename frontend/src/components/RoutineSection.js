@@ -16,7 +16,9 @@ export default function RoutineSection() {
   const fetchRoutines = async () => {
     try {
       const { data } = await api.get("/routines/me");
-      setRoutines(data);
+      // Ocultar las rutinas de IA en esta sección normal
+      const normalRoutines = data.filter(r => !r.name.startsWith("AI: "));
+      setRoutines(normalRoutines);
     } catch (err) {
       console.error(err);
       toast.error("No se pudieron cargar las rutinas");
