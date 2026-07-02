@@ -769,14 +769,20 @@ async def get_my_routines(user: User = Depends(get_current_user), db: AsyncSessi
         result = await db.execute(select(Routine).where(Routine.user_id == user.id))
         routines = result.scalars().all()
     else:
-        # Standard users get a random general routine
+        # Standard users get the general routine assigned for today or a random one
+        from datetime import date
+        today_str = date.today().isoformat()
+        
         result = await db.execute(select(Routine).where(Routine.user_id == None))
         general_routines = result.scalars().all()
         if general_routines:
-            import random
-            from datetime import date
-            random.seed(date.today().toordinal())
-            routines = [random.choice(general_routines)]
+            active_today = next((r for r in general_routines if r.objective and f"[ACTIVE:{today_str}]" in r.objective), None)
+            if active_today:
+                routines = [active_today]
+            else:
+                import random
+                random.seed(date.today().toordinal())
+                routines = [random.choice(general_routines)]
         else:
             routines = []
     
@@ -805,11 +811,13 @@ async def get_my_routines(user: User = Depends(get_current_user), db: AsyncSessi
     for r in routines:
         ex_res = await db.execute(select(RoutineExercise).where(RoutineExercise.routine_id == r.id))
         exercises = ex_res.scalars().all()
+        import re
+        clean_objective = re.sub(r'\[ACTIVE:\d{4}-\d{2}-\d{2}\]\s*', '', r.objective or '')
         out.append(RoutineOut(
             id=r.id,
             user_id=r.user_id or "",
             name=r.name,
-            objective=r.objective,
+            objective=clean_objective,
             exercises=[RoutineExerciseOut(
                 id=e.id, routine_id=e.routine_id, name=e.name, sets=e.sets, reps=e.reps, rest_seconds=e.rest_seconds
             ) for e in exercises]
@@ -951,6 +959,29 @@ async def delete_routine(routine_id: str, user: User = Depends(get_current_user)
     await db.execute(delete(Routine).where(Routine.id == routine_id))
     await db.commit()
     return {"status": "ok"}
+
+@api_router.post("/routines/general/{routine_id}/set-active")
+async def set_active_general_routine(routine_id: str, user: User = Depends(require_coach_or_admin), db: AsyncSession = Depends(get_db)):
+    from datetime import date
+    import re
+    today_str = date.today().isoformat()
+    
+    result = await db.execute(select(Routine).where(Routine.user_id == None))
+    general_routines = result.scalars().all()
+    
+    target_routine = None
+    for r in general_routines:
+        if r.objective:
+            r.objective = re.sub(r'\[ACTIVE:\d{4}-\d{2}-\d{2}\]\s*', '', r.objective)
+        if r.id == routine_id:
+            target_routine = r
+            
+    if not target_routine:
+        raise HTTPException(status_code=404, detail="Rutina general no encontrada")
+        
+    target_routine.objective = f"[ACTIVE:{today_str}] " + (target_routine.objective or "")
+    await db.commit()
+    return {"status": "ok", "message": "Rutina asignada para hoy"}
 
 
 # ----------------- Class Reservations -----------------

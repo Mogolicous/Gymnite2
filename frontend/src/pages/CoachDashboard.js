@@ -112,12 +112,45 @@ export default function CoachDashboard() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
+  
+  const [generalRoutines, setGeneralRoutines] = useState([]);
 
   useEffect(() => {
     if (activeTab === "premium") {
       fetchPremiumUsers();
+    } else if (activeTab === "general") {
+      fetchGeneralRoutines();
     }
   }, [activeTab]);
+
+  const fetchGeneralRoutines = async () => {
+    try {
+      const { data } = await api.get("/routines/general");
+      setGeneralRoutines(data);
+    } catch (err) {
+      toast.error("Error al cargar rutinas generales");
+    }
+  };
+
+  const deleteGeneralRoutine = async (id) => {
+    try {
+      await api.delete(`/routines/${id}`);
+      toast.success("Rutina eliminada");
+      fetchGeneralRoutines();
+    } catch (err) {
+      toast.error("Error al eliminar");
+    }
+  };
+
+  const setGeneralRoutineActive = async (id) => {
+    try {
+      await api.post(`/routines/general/${id}/set-active`);
+      toast.success("Rutina establecida para hoy");
+      fetchGeneralRoutines();
+    } catch (err) {
+      toast.error("Error al establecer rutina");
+    }
+  };
 
   const fetchPremiumUsers = async () => {
     setUsersLoading(true);
@@ -167,11 +200,46 @@ export default function CoachDashboard() {
           )}
 
           {activeTab === "general" && (
-            <div className="max-w-3xl">
-              <p className="text-zinc-400 mb-6">
-                Las rutinas generales creadas aquí serán asignadas aleatoriamente a los alumnos del plan estándar de forma diaria.
-              </p>
-              <RoutineBuilder isGeneral={true} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <p className="text-zinc-400 mb-6">
+                  Crea una nueva rutina general. Si no estableces ninguna para hoy, se asignará una al azar a los alumnos estándar.
+                </p>
+                <RoutineBuilder isGeneral={true} onCreated={fetchGeneralRoutines} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold mb-4">Rutinas Generales Existentes</h3>
+                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                  {generalRoutines.length === 0 ? (
+                    <p className="text-zinc-500">No hay rutinas generales creadas.</p>
+                  ) : (
+                    generalRoutines.map(r => {
+                      const isActive = r.objective?.includes("[ACTIVE:");
+                      const cleanObjective = r.objective ? r.objective.replace(/\[ACTIVE:\d{4}-\d{2}-\d{2}\]\s*/, "") : "";
+                      return (
+                        <div key={r.id} className={`gn-card p-4 flex flex-col gap-3 border ${isActive ? "border-amber-500 bg-amber-500/5" : "border-zinc-800/50"}`}>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-bold text-lg">{r.name}</h4>
+                              {isActive && <span className="bg-amber-500 text-black text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider">Activa Hoy</span>}
+                            </div>
+                            <p className="text-sm text-zinc-400">{cleanObjective}</p>
+                            <p className="text-xs text-zinc-500 mt-1">{r.exercises?.length || 0} Ejercicios</p>
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <button onClick={() => setGeneralRoutineActive(r.id)} disabled={isActive} className="text-xs flex-1 py-2 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 disabled:opacity-50 transition-colors font-semibold">
+                              {isActive ? "Ya está activa" : "⭐ Asignar Hoy"}
+                            </button>
+                            <button onClick={() => deleteGeneralRoutine(r.id)} className="text-xs px-4 py-2 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors font-semibold">
+                              Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
