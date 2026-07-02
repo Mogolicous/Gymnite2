@@ -14,6 +14,7 @@ export default function AiTrainingSection() {
 
   useEffect(() => {
     fetchAiRoutines();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchAiRoutines = async () => {
