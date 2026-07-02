@@ -764,27 +764,33 @@ async def get_my_evaluations(user: User = Depends(get_current_user), db: AsyncSe
 # ----------------- Routines -----------------
 @api_router.get("/routines/me", response_model=List[RoutineOut])
 async def get_my_routines(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    from datetime import date
+    today_str = date.today().isoformat()
+    
+    # 1. Fetch the Active General Routine (if any)
+    result_gen = await db.execute(select(Routine).where(Routine.user_id == None))
+    general_routines = result_gen.scalars().all()
+    active_today = None
+    if general_routines:
+        active_today = next((r for r in general_routines if r.objective and f"[ACTIVE:{today_str}]" in r.objective), None)
+
+    routines = []
+    
     if user.plan_type == "premium":
-        # Premium users get custom routines
+        # Premium users get custom routines PLUS the active general routine
         result = await db.execute(select(Routine).where(Routine.user_id == user.id))
-        routines = result.scalars().all()
+        user_routines = result.scalars().all()
+        if active_today:
+            routines.append(active_today)
+        routines.extend(user_routines)
     else:
-        # Standard users get the general routine assigned for today or a random one
-        from datetime import date
-        today_str = date.today().isoformat()
-        
-        result = await db.execute(select(Routine).where(Routine.user_id == None))
-        general_routines = result.scalars().all()
-        if general_routines:
-            active_today = next((r for r in general_routines if r.objective and f"[ACTIVE:{today_str}]" in r.objective), None)
-            if active_today:
-                routines = [active_today]
-            else:
-                import random
-                random.seed(date.today().toordinal())
-                routines = [random.choice(general_routines)]
-        else:
-            routines = []
+        # Standard users get the active general routine or a random one
+        if active_today:
+            routines = [active_today]
+        elif general_routines:
+            import random
+            random.seed(date.today().toordinal())
+            routines = [random.choice(general_routines)]
     
     if not routines:
         # Create a default general routine if DB is empty
