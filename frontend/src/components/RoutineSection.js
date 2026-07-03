@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Dumbbell, Loader2, Check, ArrowRight } from "lucide-react";
+import { Dumbbell, Loader2, Check, ArrowRight, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 
@@ -8,6 +8,7 @@ export default function RoutineSection() {
   const [routines, setRoutines] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [completedExercises, setCompletedExercises] = useState({});
+  const [expandedImages, setExpandedImages] = useState({});
 
   useEffect(() => {
     fetchRoutines();
@@ -27,11 +28,13 @@ export default function RoutineSection() {
     }
   };
 
-  const toggleExercise = (exerciseId) => {
-    setCompletedExercises(prev => ({
-      ...prev,
-      [exerciseId]: !prev[exerciseId]
-    }));
+  const toggleExercise = (exId) => {
+    setCompletedExercises(prev => ({ ...prev, [exId]: !prev[exId] }));
+  };
+
+  const toggleImage = (e, exId) => {
+    e.stopPropagation();
+    setExpandedImages(prev => ({ ...prev, [exId]: !prev[exId] }));
   };
 
   if (loading) {
@@ -88,6 +91,7 @@ export default function RoutineSection() {
             onClick={() => {
               setActiveIndex(i);
               setCompletedExercises({}); // Reset completion when changing day
+              setExpandedImages({});
             }}
             className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-medium transition-all ${
               activeIndex === i 
@@ -153,6 +157,39 @@ export default function RoutineSection() {
                   {isDone ? <Check className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
                 </div>
               </div>
+              
+              {/* Image Toggle Button */}
+              {ex.image_url && (
+                <button
+                  onClick={(e) => toggleImage(e, ex.id)}
+                  className={`absolute top-4 right-16 p-2 rounded-full transition-all ${
+                    expandedImages[ex.id] 
+                      ? "bg-purple-500 text-white" 
+                      : "bg-zinc-800 text-zinc-400 hover:text-white"
+                  }`}
+                  title="Ver demostración"
+                >
+                  <ImageIcon className="h-4 w-4" />
+                </button>
+              )}
+              
+              {/* Expandable Image Area */}
+              {ex.image_url && (
+                <div 
+                  className={`transition-all duration-500 overflow-hidden ${
+                    expandedImages[ex.id] ? "max-h-[500px] mt-4 opacity-100" : "max-h-0 opacity-0"
+                  }`}
+                >
+                  <div className="w-full rounded-xl overflow-hidden bg-zinc-950 flex items-center justify-center">
+                    <img 
+                      src={ex.image_url} 
+                      alt={ex.name} 
+                      className="w-full h-auto object-cover opacity-90 hover:opacity-100 transition-opacity"
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
+              )}
             </button>
           );
         })}

@@ -122,6 +122,7 @@ class RoutineExercise(Base):
     sets: Mapped[int] = mapped_column(Integer)
     reps: Mapped[int] = mapped_column(Integer)
     rest_seconds: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    image_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
 class ClassReservation(Base):
     __tablename__ = "class_reservations"
@@ -302,6 +303,7 @@ class RoutineExerciseOut(BaseModel):
     sets: int
     reps: int
     rest_seconds: Optional[str] = None
+    image_url: Optional[str] = None
 
 class RoutineOut(BaseModel):
     id: str
@@ -318,6 +320,9 @@ class RoutineIn(BaseModel):
 class RoutineExerciseIn(BaseModel):
     name: str
     sets: int
+    reps: int
+    rest_seconds: Optional[str] = "60s"
+    image_url: Optional[str] = None
     reps: int
     rest_seconds: Optional[str] = None
 
@@ -883,14 +888,23 @@ async def generate_ai_routine(payload: GenerateRoutineIn, user: User = Depends(g
         db.add(new_routine)
         
         exercises_out = []
+        
+        # Load and map wger images
+        def get_wger_image(name: str):
+            lower_name = name.lower().strip()
+            return wger_images.get(lower_name, None)
+            
+        exercises_out = []
         for ex in data.get("exercises", [])[:5]:
+            ex_name = ex.get("name", "Ejercicio")
             new_ex = RoutineExercise(
                 id=str(uuid.uuid4()),
                 routine_id=new_routine.id,
-                name=ex.get("name", "Ejercicio"),
+                name=ex_name,
                 sets=ex.get("sets", 3),
                 reps=ex.get("reps", 10),
-                rest_seconds=ex.get("rest_seconds", "60s")
+                rest_seconds=ex.get("rest_seconds", "60s"),
+                image_url=get_wger_image(ex_name)
             )
             db.add(new_ex)
             exercises_out.append(new_ex)
@@ -904,7 +918,7 @@ async def generate_ai_routine(payload: GenerateRoutineIn, user: User = Depends(g
             name=new_routine.name,
             objective=new_routine.objective,
             exercises=[RoutineExerciseOut(
-                id=e.id, routine_id=e.routine_id, name=e.name, sets=e.sets, reps=e.reps, rest_seconds=e.rest_seconds
+                id=e.id, routine_id=e.routine_id, name=e.name, sets=e.sets, reps=e.reps, rest_seconds=e.rest_seconds, image_url=e.image_url
             ) for e in exercises_out]
         )
         
@@ -925,11 +939,11 @@ async def add_routine_exercise(routine_id: str, data: RoutineExerciseIn, user: U
     result = await db.execute(select(Routine).where(Routine.id == routine_id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Rutina no encontrada")
-    new_ex = RoutineExercise(id=str(uuid.uuid4()), routine_id=routine_id, name=data.name, sets=data.sets, reps=data.reps, rest_seconds=data.rest_seconds)
+    new_ex = RoutineExercise(id=str(uuid.uuid4()), routine_id=routine_id, name=data.name, sets=data.sets, reps=data.reps, rest_seconds=data.rest_seconds, image_url=data.image_url)
     db.add(new_ex)
     await db.commit()
     await db.refresh(new_ex)
-    return new_ex
+    return RoutineExerciseOut(id=new_ex.id, routine_id=new_ex.routine_id, name=new_ex.name, sets=new_ex.sets, reps=new_ex.reps, rest_seconds=new_ex.rest_seconds, image_url=new_ex.image_url)
 
 @api_router.get("/routines/general", response_model=List[RoutineOut])
 async def get_general_routines(user: User = Depends(require_coach_or_admin), db: AsyncSession = Depends(get_db)):
@@ -938,7 +952,7 @@ async def get_general_routines(user: User = Depends(require_coach_or_admin), db:
     out = []
     for r in routines:
         ex_res = await db.execute(select(RoutineExercise).where(RoutineExercise.routine_id == r.id))
-        out.append(RoutineOut(id=r.id, user_id="", name=r.name, objective=r.objective, exercises=[RoutineExerciseOut(id=e.id, routine_id=e.routine_id, name=e.name, sets=e.sets, reps=e.reps, rest_seconds=e.rest_seconds) for e in ex_res.scalars().all()]))
+        out.append(RoutineOut(id=r.id, user_id="", name=r.name, objective=r.objective, exercises=[RoutineExerciseOut(id=e.id, routine_id=e.routine_id, name=e.name, sets=e.sets, reps=e.reps, rest_seconds=e.rest_seconds, image_url=e.image_url) for e in ex_res.scalars().all()]))
     return out
 
 @api_router.get("/routines/user/{user_id}", response_model=List[RoutineOut])
@@ -948,7 +962,7 @@ async def get_user_routines(user_id: str, user: User = Depends(require_coach_or_
     out = []
     for r in routines:
         ex_res = await db.execute(select(RoutineExercise).where(RoutineExercise.routine_id == r.id))
-        out.append(RoutineOut(id=r.id, user_id=r.user_id or "", name=r.name, objective=r.objective, exercises=[RoutineExerciseOut(id=e.id, routine_id=e.routine_id, name=e.name, sets=e.sets, reps=e.reps, rest_seconds=e.rest_seconds) for e in ex_res.scalars().all()]))
+        out.append(RoutineOut(id=r.id, user_id=r.user_id or "", name=r.name, objective=r.objective, exercises=[RoutineExerciseOut(id=e.id, routine_id=e.routine_id, name=e.name, sets=e.sets, reps=e.reps, rest_seconds=e.rest_seconds, image_url=e.image_url) for e in ex_res.scalars().all()]))
     return out
 
 @api_router.delete("/routines/{routine_id}")
@@ -1071,10 +1085,25 @@ app.add_middleware(
 )
 
 # ----------------- Seed -----------------
+import json
+import os
+
+wger_images = {}
+wger_images_path = os.path.join(os.path.dirname(__file__), "wger_images.json")
+if os.path.exists(wger_images_path):
+    with open(wger_images_path, "r", encoding="utf-8") as f:
+        wger_images = json.load(f)
+
 @app.on_event("startup")
 async def on_startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Handle migration for image_url
+        try:
+            from sqlalchemy import text
+            await conn.execute(text("ALTER TABLE routine_exercises ADD COLUMN image_url VARCHAR"))
+        except Exception:
+            pass
         
     async with engine.connect() as conn:
         try:
