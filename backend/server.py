@@ -891,7 +891,7 @@ async def generate_ai_routine(payload: GenerateRoutineIn, user: User = Depends(g
         
         # Load and map wger images
         def get_wger_image(name: str):
-            nonlocal wger_images
+            global wger_images
             if not wger_images:
                 try:
                     with open(wger_images_path, "r", encoding="utf-8") as f:
