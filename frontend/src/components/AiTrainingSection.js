@@ -301,7 +301,8 @@ export default function AiTrainingSection() {
                         </div>
                         <div>
                           <h5 className={`font-medium transition-colors ${isCompleted ? "text-amber-400/80 line-through" : "text-zinc-200"}`}>
-                            {ex.name}
+                            {ex.name} 
+                            <span className="text-xs ml-2 text-blue-400">[{ex.image_url ? ex.image_url.substring(0, 30) + '...' : "NULL"}]</span>
                           </h5>
                           <p className="text-xs text-zinc-500 mt-1 uppercase tracking-wider font-semibold">
                             {ex.sets === 1 && ex.reps > 4 

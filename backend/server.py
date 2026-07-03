@@ -896,8 +896,10 @@ async def generate_ai_routine(payload: GenerateRoutineIn, user: User = Depends(g
                 try:
                     with open(wger_images_path, "r", encoding="utf-8") as f:
                         wger_images = json.load(f)
-                except Exception:
-                    pass
+                        logger.info(f"Loaded {len(wger_images)} wger images.")
+                except Exception as e:
+                    logger.error(f"Error loading wger_images.json from {wger_images_path}: {e}")
+                    return f"ERROR_LOADING_JSON: {e}"
                     
             lower_name = name.lower().strip()
             
@@ -924,6 +926,8 @@ async def generate_ai_routine(payload: GenerateRoutineIn, user: User = Depends(g
                     best_score = overlap
                     best_match = img
                     
+            if not best_match:
+                return f"DEBUG_NO_MATCH_FOR_WORDS_{list(name_words)}"
             return best_match
             
         exercises_out = []
