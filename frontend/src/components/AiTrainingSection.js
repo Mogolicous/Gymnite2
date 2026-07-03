@@ -1,8 +1,41 @@
 import React, { useState, useEffect } from "react";
-import { Sparkles, Trash2, Check, Loader2, PlayCircle, Image as ImageIcon, Settings2, ChevronDown } from "lucide-react";
+import {
+  Brain, Zap, ChevronRight, CheckCircle2, ChevronDown, ChevronUp, AlertCircle, Dumbbell, PlayCircle, Loader2, ArrowRight, Save, Trash2, Camera, Check
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import wgerImages from "../assets/wger_images.json";
+
+function getWgerImageLocal(name) {
+  if (!name) return null;
+  const lowerName = name.toLowerCase().trim();
+  if (wgerImages[lowerName]) return wgerImages[lowerName];
+  
+  const cleanWords = (text) => {
+    let t = text.replace(/-/g, "").replace(/á/g, "a").replace(/é/g, "e").replace(/í/g, "i").replace(/ó/g, "o").replace(/ú/g, "u");
+    return new Set(t.split(/\s+/).filter(w => w.length > 3));
+  };
+  
+  const nameWords = cleanWords(lowerName);
+  if (nameWords.size === 0) return null;
+  
+  let bestMatch = null;
+  let bestScore = 0;
+  
+  for (const [key, img] of Object.entries(wgerImages)) {
+    const keyWords = cleanWords(key);
+    let overlap = 0;
+    for (const w of nameWords) {
+      if (keyWords.has(w)) overlap++;
+    }
+    if (overlap > bestScore && overlap >= 1) {
+      bestScore = overlap;
+      bestMatch = img;
+    }
+  }
+  return bestMatch;
+}
 
 export default function AiTrainingSection() {
   const [loading, setLoading] = useState(true);
@@ -11,7 +44,7 @@ export default function AiTrainingSection() {
   const [routines, setRoutines] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [completedExercises, setCompletedExercises] = useState({});
-  const [expandedImages, setExpandedImages] = useState({});
+  const [activeImageId, setActiveImageId] = useState(null);
   
   // Advanced Settings State
   const [showSettings, setShowSettings] = useState(false);
@@ -74,9 +107,8 @@ export default function AiTrainingSection() {
     setCompletedExercises(prev => ({ ...prev, [exId]: !prev[exId] }));
   };
 
-  const toggleImage = (e, exId) => {
-    e.stopPropagation();
-    setExpandedImages(prev => ({ ...prev, [exId]: !prev[exId] }));
+  const toggleExerciseImage = (exId) => {
+    setActiveImageId(activeImageId === exId ? null : exId);
   };
 
   const deleteRoutine = async (id) => {
@@ -237,7 +269,7 @@ export default function AiTrainingSection() {
                   onClick={() => {
                     setActiveIndex(i);
                     setCompletedExercises({});
-                    setExpandedImages({});
+                    setActiveImageId(null);
                   }}
                   className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-all ${
                     activeIndex === i 
@@ -281,6 +313,7 @@ export default function AiTrainingSection() {
 
               {activeRoutine.exercises.map((ex, i) => {
                 const isCompleted = completedExercises[ex.id];
+                const imageSource = ex.image_url || getWgerImageLocal(ex.name);
                 return (
                   <div key={ex.id} className="relative">
                     <div 
@@ -302,7 +335,6 @@ export default function AiTrainingSection() {
                         <div>
                           <h5 className={`font-medium transition-colors ${isCompleted ? "text-amber-400/80 line-through" : "text-zinc-200"}`}>
                             {ex.name} 
-                            <span className="text-xs ml-2 text-blue-400">[{ex.image_url ? ex.image_url.substring(0, 30) + '...' : "NULL"}]</span>
                           </h5>
                           <p className="text-xs text-zinc-500 mt-1 uppercase tracking-wider font-semibold">
                             {ex.sets === 1 && ex.reps > 4 
@@ -321,33 +353,31 @@ export default function AiTrainingSection() {
                       </div>
                     </div>
                     
-                    {/* Image Toggle Button */}
-                    {ex.image_url && (
-                      <button
-                        onClick={(e) => toggleImage(e, ex.id)}
-                        className={`absolute top-4 right-20 p-2 rounded-full transition-all z-10 ${
-                          expandedImages[ex.id] 
-                            ? "bg-amber-500 text-black" 
-                            : "bg-zinc-800 text-zinc-400 hover:text-white"
+                    {imageSource && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleExerciseImage(ex.id);
+                        }}
+                        className={`absolute top-4 right-20 z-10 p-2 rounded-xl border transition-all duration-300 ${
+                          activeImageId === ex.id 
+                            ? "bg-amber-500/20 border-amber-500/50 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]" 
+                            : "bg-zinc-800 border-zinc-700/50 text-zinc-400 hover:bg-zinc-700 hover:text-amber-400"
                         }`}
                         title="Ver demostración"
                       >
-                        <ImageIcon className="h-4 w-4" />
+                        <Camera className="h-4 w-4" />
                       </button>
                     )}
                     
                     {/* Expandable Image Area */}
-                    {ex.image_url && (
-                      <div 
-                        className={`transition-all duration-500 overflow-hidden ${
-                          expandedImages[ex.id] ? "max-h-[500px] mt-2 opacity-100" : "max-h-0 opacity-0"
-                        }`}
-                      >
-                        <div className="w-full rounded-xl overflow-hidden bg-zinc-950 flex items-center justify-center border border-zinc-800/50">
+                    {imageSource && (
+                      <div className={`overflow-hidden transition-all duration-500 ease-in-out ${activeImageId === ex.id ? "max-h-[500px] opacity-100 mt-2" : "max-h-0 opacity-0"}`}>
+                        <div className="p-4 rounded-xl border border-zinc-800 bg-black/40 flex justify-center items-center">
                           <img 
-                            src={ex.image_url} 
-                            alt={ex.name} 
-                            className="w-full h-auto object-cover opacity-90 hover:opacity-100 transition-opacity"
+                            src={imageSource} 
+                            alt={ex.name}
+                            className="max-h-[300px] object-contain rounded-lg filter contrast-125"
                             loading="lazy"
                           />
                         </div>
