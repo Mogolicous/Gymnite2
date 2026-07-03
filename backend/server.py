@@ -23,6 +23,16 @@ from sqlalchemy import String, Boolean, Integer, Text, Float, ForeignKey, select
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
+import json
+wger_images = {}
+wger_images_path = os.path.join(os.path.dirname(__file__), "wger_images.json")
+try:
+    if os.path.exists(wger_images_path):
+        with open(wger_images_path, "r", encoding="utf-8") as f:
+            wger_images = json.load(f)
+except Exception:
+    pass
+
 # ----------------- Config -----------------
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_MINUTES = 60 * 24  # 1 day
@@ -891,16 +901,6 @@ async def generate_ai_routine(payload: GenerateRoutineIn, user: User = Depends(g
         
         # Load and map wger images
         def get_wger_image(name: str):
-            global wger_images
-            if not wger_images:
-                try:
-                    with open(wger_images_path, "r", encoding="utf-8") as f:
-                        wger_images = json.load(f)
-                        logger.info(f"Loaded {len(wger_images)} wger images.")
-                except Exception as e:
-                    logger.error(f"Error loading wger_images.json from {wger_images_path}: {e}")
-                    return f"ERROR_LOADING_JSON: {e}"
-                    
             lower_name = name.lower().strip()
             
             # 1. Exact match
@@ -1124,11 +1124,7 @@ app.add_middleware(
 import json
 import os
 
-wger_images = {}
-wger_images_path = os.path.join(os.path.dirname(__file__), "wger_images.json")
-if os.path.exists(wger_images_path):
-    with open(wger_images_path, "r", encoding="utf-8") as f:
-        wger_images = json.load(f)
+
 
 @app.on_event("startup")
 async def on_startup():
