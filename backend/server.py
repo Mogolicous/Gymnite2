@@ -891,8 +891,40 @@ async def generate_ai_routine(payload: GenerateRoutineIn, user: User = Depends(g
         
         # Load and map wger images
         def get_wger_image(name: str):
+            nonlocal wger_images
+            if not wger_images:
+                try:
+                    with open(wger_images_path, "r", encoding="utf-8") as f:
+                        wger_images = json.load(f)
+                except Exception:
+                    pass
+                    
             lower_name = name.lower().strip()
-            return wger_images.get(lower_name, None)
+            
+            # 1. Exact match
+            if lower_name in wger_images:
+                return wger_images[lower_name]
+                
+            # 2. Word overlap fuzzy match
+            def clean_words(text):
+                t = text.replace("-", "").replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+                return set([w for w in t.split() if len(w) > 3]) # Only meaningful words > 3 chars
+                
+            name_words = clean_words(lower_name)
+            if not name_words:
+                return None
+                
+            best_match = None
+            best_score = 0
+            
+            for key, img in wger_images.items():
+                key_words = clean_words(key)
+                overlap = len(name_words.intersection(key_words))
+                if overlap > best_score and overlap >= 1:
+                    best_score = overlap
+                    best_match = img
+                    
+            return best_match
             
         exercises_out = []
         for ex in data.get("exercises", [])[:5]:
