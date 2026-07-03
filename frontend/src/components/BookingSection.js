@@ -31,9 +31,14 @@ export default function BookingSection() {
     }
   };
 
+  const getLocalDateStr = (d) => {
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffset).toISOString().split("T")[0];
+  };
+
   const handleReserve = async (shift) => {
     setBooking(true);
-    const dateStr = selectedDate.toISOString().split("T")[0];
+    const dateStr = getLocalDateStr(selectedDate);
     try {
       const { data } = await api.post("/classes/reserve", {
         date: dateStr,
@@ -48,7 +53,11 @@ export default function BookingSection() {
     }
   };
 
-  const dateStr = selectedDate.toISOString().split("T")[0];
+  const dateStr = getLocalDateStr(selectedDate);
+  const todayStr = getLocalDateStr(new Date());
+  const isToday = dateStr === todayStr;
+  const currentHour = new Date().getHours();
+  
   const dayOfWeek = selectedDate.getDay(); // 0 is Sunday, 6 is Saturday
   
   // Sundays are closed
@@ -122,6 +131,13 @@ export default function BookingSection() {
           {availableShifts.map((shiftKey) => {
             const isBooked = todaysReservations.some(r => r.shift === shiftKey);
             const shiftInfo = SHIFTS[shiftKey];
+            
+            let isPast = false;
+            if (isToday) {
+              if (shiftKey === "morning" && currentHour >= 11) isPast = true;
+              if (shiftKey === "evening" && currentHour >= 20) isPast = true;
+              if (shiftKey === "saturday" && currentHour >= 23) isPast = true;
+            }
 
             return (
               <div 
@@ -129,15 +145,17 @@ export default function BookingSection() {
                 className={`relative overflow-hidden rounded-2xl p-5 border transition-all duration-300 ${
                   isBooked
                     ? "bg-purple-500/10 border-purple-500/30"
-                    : "bg-zinc-900/40 border-zinc-800/50"
+                    : isPast 
+                      ? "bg-zinc-900/20 border-zinc-900/50 opacity-50"
+                      : "bg-zinc-900/40 border-zinc-800/50"
                 }`}
               >
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h5 className={`font-bold ${isBooked ? "text-purple-300" : "text-zinc-100"}`}>
+                    <h5 className={`font-bold ${isBooked ? "text-purple-300" : isPast ? "text-zinc-600" : "text-zinc-100"}`}>
                       {shiftInfo.label}
                     </h5>
-                    <p className="text-zinc-400 text-sm flex items-center gap-2 mt-1">
+                    <p className={`text-sm flex items-center gap-2 mt-1 ${isPast ? "text-zinc-600" : "text-zinc-400"}`}>
                       <Clock className="h-3 w-3" /> {shiftInfo.time}
                     </p>
                   </div>
@@ -151,11 +169,15 @@ export default function BookingSection() {
                 {!isBooked ? (
                   <button
                     onClick={() => handleReserve(shiftKey)}
-                    disabled={booking}
-                    className="w-full py-2.5 rounded-xl text-sm font-medium border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors disabled:opacity-50 flex justify-center items-center gap-2"
+                    disabled={booking || isPast}
+                    className={`w-full py-2.5 rounded-xl text-sm font-medium border flex justify-center items-center gap-2 transition-colors ${
+                      isPast 
+                        ? "bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed" 
+                        : "border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                    }`}
                   >
                     {booking && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Reservar Turno
+                    {isPast ? "Turno Finalizado" : "Reservar Turno"}
                   </button>
                 ) : (
                   <div className="w-full py-2.5 rounded-xl text-sm font-medium border border-purple-500/20 bg-purple-500/10 text-purple-300 text-center">
@@ -163,7 +185,6 @@ export default function BookingSection() {
                   </div>
                 )}
               </div>
-            );
           })}
         </div>
       )}
