@@ -1,40 +1,56 @@
 import React, { useState, useEffect } from "react";
 import {
-  Brain, Zap, ChevronRight, CheckCircle2, ChevronDown, ChevronUp, AlertCircle, Dumbbell, PlayCircle, Loader2, ArrowRight, Save, Trash2, Camera, Check
+  Brain, Zap, ChevronRight, CheckCircle2, ChevronDown, ChevronUp, AlertCircle, Dumbbell, PlayCircle, Loader2, ArrowRight, Save, Trash2, Camera, Check, Sparkles, Settings2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import wgerImages from "../assets/wger_images.json";
 
+// Pre-compute dictionary words to avoid doing it on every render
+let precomputedWger = null;
+
 function getWgerImageLocal(name) {
-  if (!name) return null;
-  const lowerName = name.toLowerCase().trim();
-  if (wgerImages[lowerName]) return wgerImages[lowerName];
-  
-  const cleanWords = (text) => {
-    let t = text.replace(/-/g, "").replace(/á/g, "a").replace(/é/g, "e").replace(/í/g, "i").replace(/ó/g, "o").replace(/ú/g, "u");
-    return new Set(t.split(/\s+/).filter(w => w.length > 3));
-  };
-  
-  const nameWords = cleanWords(lowerName);
-  if (nameWords.size === 0) return null;
-  
-  let bestMatch = null;
-  let bestScore = 0;
-  
-  for (const [key, img] of Object.entries(wgerImages)) {
-    const keyWords = cleanWords(key);
-    let overlap = 0;
-    for (const w of nameWords) {
-      if (keyWords.has(w)) overlap++;
+  try {
+    if (!name || !wgerImages || typeof wgerImages !== 'object') return null;
+    
+    const lowerName = name.toLowerCase().trim();
+    if (wgerImages[lowerName]) return wgerImages[lowerName];
+    
+    const cleanWords = (text) => {
+      let t = text.replace(/-/g, "").replace(/á/g, "a").replace(/é/g, "e").replace(/í/g, "i").replace(/ó/g, "o").replace(/ú/g, "u");
+      return new Set(t.split(/\s+/).filter(w => w.length > 3));
+    };
+    
+    const nameWords = cleanWords(lowerName);
+    if (nameWords.size === 0) return null;
+    
+    // Lazy initialize precomputed dictionary
+    if (!precomputedWger) {
+      precomputedWger = Object.entries(wgerImages).map(([key, img]) => ({
+        keyWords: cleanWords(key),
+        img
+      }));
     }
-    if (overlap > bestScore && overlap >= 1) {
-      bestScore = overlap;
-      bestMatch = img;
+    
+    let bestMatch = null;
+    let bestScore = 0;
+    
+    for (const item of precomputedWger) {
+      let overlap = 0;
+      for (const w of nameWords) {
+        if (item.keyWords.has(w)) overlap++;
+      }
+      if (overlap > bestScore && overlap >= 1) {
+        bestScore = overlap;
+        bestMatch = item.img;
+      }
     }
+    return bestMatch;
+  } catch (error) {
+    console.error("Error in getWgerImageLocal:", error);
+    return null;
   }
-  return bestMatch;
 }
 
 export default function AiTrainingSection() {
