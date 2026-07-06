@@ -723,6 +723,68 @@ async def admin_stats(admin: User = Depends(require_admin), db: AsyncSession = D
     
     return {"no_subscribed": no_sub, "pending": pending, "subscribed": subscribed}
 
+@api_router.get("/admin/reports")
+async def admin_reports(admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    result_total = await db.execute(select(func.count(User.id)).where(User.role == "user"))
+    total_users = result_total.scalar_one()
+
+    result_active_users = await db.execute(select(User).where(User.role == "user", User.status == "subscribed"))
+    active_users_list = result_active_users.scalars().all()
+    
+    active_users = len(active_users_list)
+    
+    mrr = 0
+    revenue_by_plan = {"pesas": 0, "clases": 0, "premium": 0}
+    plan_prices = {
+        "pesas": {1: 25, 3: 69, 6: 129, 12: 230},
+        "clases": {1: 25, 3: 69, 6: 129, 12: 230},
+        "premium": {1: 45, 3: 125, 6: 239, 12: 440}
+    }
+    
+    now = datetime.now(timezone.utc)
+    next_30 = now + timedelta(days=30)
+    expiring_soon = 0
+    
+    for u in active_users_list:
+        ptype = u.plan_type or "pesas"
+        pmonths = u.plan_months or 1
+        price = plan_prices.get(ptype, plan_prices["pesas"]).get(pmonths, 25)
+        monthly_value = price / pmonths
+        mrr += monthly_value
+        if ptype in revenue_by_plan:
+            revenue_by_plan[ptype] += monthly_value
+            
+        if u.plan_expires_at:
+            try:
+                # Handle ISO format potentially ending in Z
+                exp_date_str = u.plan_expires_at.replace("Z", "+00:00")
+                exp_date = datetime.fromisoformat(exp_date_str)
+                if exp_date.tzinfo is None:
+                    exp_date = exp_date.replace(tzinfo=timezone.utc)
+                if now <= exp_date <= next_30:
+                    expiring_soon += 1
+            except Exception:
+                pass
+
+    thirty_days_ago = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+    result_att = await db.execute(select(Attendance.date, func.count(Attendance.id)).where(Attendance.date >= thirty_days_ago).group_by(Attendance.date).order_by(Attendance.date.asc()))
+    attendance_data = result_att.all()
+    trend_dict = {row[0]: row[1] for row in attendance_data}
+    
+    filled_trend = []
+    for i in range(30):
+        d = (now - timedelta(days=29 - i)).strftime("%Y-%m-%d")
+        filled_trend.append({"date": d, "count": trend_dict.get(d, 0)})
+
+    return {
+        "total_users": total_users,
+        "active_users": active_users,
+        "mrr": round(mrr, 2),
+        "revenue_by_plan": {k: round(v, 2) for k, v in revenue_by_plan.items()},
+        "expiring_soon": expiring_soon,
+        "attendance_trend": filled_trend
+    }
+
 # ----------------- Attendance -----------------
 @api_router.post("/attendance", response_model=AttendanceOut)
 async def check_in(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):

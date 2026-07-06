@@ -23,6 +23,7 @@ import { Slider } from "@/components/ui/slider";
 import { PLAN_TIERS, planByMonthsAndType } from "@/lib/plans";
 import { toast } from "sonner";
 import AdminReservations from "./AdminReservations";
+import AdminReports from "./AdminReports";
 
 const STATUS_META = {
   no_subscribed: { label: "No Suscrito", pill: "bg-zinc-500/10 text-zinc-300 border-zinc-500/30" },
@@ -649,9 +650,17 @@ export default function Admin() {
           >
             Clases & Reservas
           </button>
+          <button
+            onClick={() => setActiveTab("reports")}
+            className={`pb-3 px-2 text-sm font-medium transition-colors border-b-2 ${
+              activeTab === "reports" ? "border-purple-500 text-purple-400" : "border-transparent text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            Reportes y Analytics
+          </button>
         </div>
 
-        {activeTab === "users" ? (
+        {activeTab === "users" && (
           <>
             {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-10">
@@ -848,8 +857,12 @@ export default function Admin() {
           )}
         </div>
           </>
-        ) : (
+        )}
+        {activeTab === "reservations" && (
           <AdminReservations />
+        )}
+        {activeTab === "reports" && (
+          <AdminReports />
         )}
       </div>
 
