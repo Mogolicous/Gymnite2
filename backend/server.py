@@ -1209,9 +1209,11 @@ async def generate_ai_routine(payload: GenerateRoutineIn, user: User = Depends(g
             ) for e in exercises_out]
         )
         
+    except HTTPException as he:
+        raise he
     except Exception as e:
         logger.error(f"Error generando rutina IA: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error al generar la rutina con IA")
+        raise HTTPException(status_code=500, detail=f"Error AI: {str(e)}")
 
 @api_router.post("/routines", response_model=RoutineOut)
 async def create_routine(data: RoutineIn, user: User = Depends(require_coach_or_admin), db: AsyncSession = Depends(get_db)):
