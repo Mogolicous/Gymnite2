@@ -66,6 +66,7 @@ const HardwareConfig = () => {
       window.removeEventListener('keydown', handleKeyDown);
       clearTimeout(timeoutRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, selectedUserId]); // Dependencias para que handleScan tenga el estado actual
 
   const handleScan = async (rfidUid) => {
