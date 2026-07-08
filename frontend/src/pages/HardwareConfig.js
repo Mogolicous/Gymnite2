@@ -11,8 +11,18 @@ const HardwareConfig = () => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [loading, setLoading] = useState(true);
   
-  const bufferRef = useRef(''); // Guarda los números escaneados
-  const timeoutRef = useRef(null); // Para limpiar el buffer si se tarda mucho
+  // Serial API state
+  const [serialConnected, setSerialConnected] = useState(false);
+
+  // Refs para evitar "stale closures" en el bucle del Serial y Teclado
+  const modeRef = useRef(mode);
+  const selectedUserIdRef = useRef(selectedUserId);
+  
+  useEffect(() => { modeRef.current = mode; }, [mode]);
+  useEffect(() => { selectedUserIdRef.current = selectedUserId; }, [selectedUserId]);
+
+  const bufferRef = useRef(''); // Guarda los números escaneados (para modo teclado)
+  const timeoutRef = useRef(null);
 
   // Cargar usuarios
   useEffect(() => {
@@ -35,25 +45,22 @@ const HardwareConfig = () => {
     return () => { active = false; };
   }, []);
 
-  // Listener Global del Teclado (Lector RFID HID)
+  // ====== MODO 1: Lector de Teclado (HID) ======
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ignorar teclas especiales
       if (e.key.length > 1 && e.key !== 'Enter') return;
 
       if (e.key === 'Enter') {
         const scannedCode = bufferRef.current;
         if (scannedCode.length > 0) {
-          handleScan(scannedCode);
+          handleScanWithRefs(scannedCode);
         }
-        bufferRef.current = ''; // Limpiar buffer
+        bufferRef.current = ''; 
         return;
       }
 
-      // Acumular caracteres numéricos o alfanuméricos del lector
       bufferRef.current += e.key;
 
-      // Limpiar el buffer si pasan más de 100ms sin teclas (para evitar escribir manual)
       clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
         bufferRef.current = '';
@@ -65,25 +72,78 @@ const HardwareConfig = () => {
       window.removeEventListener('keydown', handleKeyDown);
       clearTimeout(timeoutRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, selectedUserId]); // Dependencias para que handleScan tenga el estado actual
+  }, []); // Dependencias vacías porque usa refs internamente
 
-  const handleScan = async (rfidUid) => {
-    if (mode === 'ASSIGNMENT') {
-      if (!selectedUserId) {
+  // ====== MODO 2: Web Serial API (Arduino UNO Directo) ======
+  const connectSerial = async () => {
+    if (!('serial' in navigator)) {
+      toast.error('Tu navegador no soporta Web Serial API. Usa Chrome, Edge u Opera en PC.');
+      return;
+    }
+
+    try {
+      const port = await navigator.serial.requestPort();
+      await port.open({ baudRate: 9600 });
+      setSerialConnected(true);
+      toast.success('Arduino conectado exitosamente por Serial.');
+
+      const textDecoder = new TextDecoderStream();
+      port.readable.pipeTo(textDecoder.writable);
+      const reader = textDecoder.readable.getReader();
+
+      let serialBuffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          reader.releaseLock();
+          break;
+        }
+        if (value) {
+          serialBuffer += value;
+          const lines = serialBuffer.split('\n');
+          // Procesar todas las líneas completas
+          for (let i = 0; i < lines.length - 1; i++) {
+            const line = lines[i].trim();
+            if (line && line !== "INICIADO") {
+              handleScanWithRefs(line);
+            }
+          }
+          // Guardar lo incompleto para el siguiente ciclo
+          serialBuffer = lines[lines.length - 1];
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      if (error.name === 'NotFoundError') {
+        toast.info('Cancelaste la conexión del puerto serial.');
+      } else {
+        toast.error('Error al conectar con Arduino: ' + error.message);
+      }
+      setSerialConnected(false);
+    }
+  };
+
+  // ====== LÓGICA COMÚN ======
+  const handleScanWithRefs = async (rfidUid) => {
+    const currentMode = modeRef.current;
+    const currentUserId = selectedUserIdRef.current;
+
+    if (currentMode === 'ASSIGNMENT') {
+      if (!currentUserId) {
         toast.error('Por favor selecciona un usuario primero.');
         return;
       }
-      assignCardToUser(rfidUid);
+      assignCardToUser(currentUserId, rfidUid);
     } else {
       verifyCardAccess(rfidUid);
     }
   };
 
-  const assignCardToUser = async (rfidUid) => {
+  const assignCardToUser = async (userId, rfidUid) => {
     try {
       const { data } = await api.post('/hardware/assign-card', {
-        userId: selectedUserId, 
+        userId: userId, 
         rfidUid 
       });
       
@@ -92,7 +152,7 @@ const HardwareConfig = () => {
       setTimeout(() => {
         setShowConfetti(false);
         setStatusScreen(null);
-        setSelectedUserId(''); // Reset
+        setSelectedUserId(''); // Reset UI selector
       }, 4000);
       
     } catch (error) {
@@ -113,7 +173,6 @@ const HardwareConfig = () => {
         setStatusScreen({ type: 'warning', message: 'ACCESO DENEGADO - Tarjeta no registrada' });
       }
 
-      // Quitar la pantalla de estado después de 3 segundos
       setTimeout(() => setStatusScreen(null), 3000);
     } catch (error) {
       console.error(error);
@@ -121,7 +180,6 @@ const HardwareConfig = () => {
     }
   };
 
-  // Renderizado de pantallas de estado completas
   if (statusScreen) {
     const bgColors = {
       success: 'bg-green-500',
@@ -163,14 +221,31 @@ const HardwareConfig = () => {
           </div>
 
           <div className="text-center py-12 border-2 border-dashed border-white/10 rounded-2xl bg-black/20 mb-8 relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-r from-brand-500/0 via-brand-500/5 to-brand-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/5 to-purple-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+            
+            {!serialConnected && (
+              <div className="mb-8">
+                <button 
+                  onClick={connectSerial}
+                  className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3 px-6 rounded-full shadow-[0_0_20px_rgba(168,85,247,0.4)] transition-all flex items-center gap-2 mx-auto"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                  Conectar Arduino UNO 
+                </button>
+                <p className="text-xs text-zinc-500 mt-3">Solo en Chrome/Edge PC. O usa un lector USB normal y simplemente escanea.</p>
+              </div>
+            )}
+
             <div className="animate-pulse mb-6 flex justify-center">
-              <svg className="w-20 h-20 text-brand-400 drop-shadow-[0_0_15px_rgba(var(--brand-500),0.5)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-20 h-20 ${serialConnected ? 'text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]' : 'text-purple-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
               </svg>
             </div>
-            <p className="text-2xl font-semibold text-white tracking-tight">Esperando tarjeta...</p>
-            <p className="text-sm text-zinc-400 mt-3">Acerca el llavero o tarjeta al lector USB</p>
+            
+            <p className="text-2xl font-semibold text-white tracking-tight">
+              {serialConnected ? 'Arduino Conectado. Esperando tarjeta...' : 'Esperando tarjeta...'}
+            </p>
+            <p className="text-sm text-zinc-400 mt-3">Acerca el llavero o tarjeta al lector</p>
           </div>
 
           {/* Selectores solo en modo asignación */}
@@ -178,7 +253,7 @@ const HardwareConfig = () => {
             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <label className="block text-sm font-medium text-zinc-300">Seleccionar Usuario para Asignar:</label>
               <select 
-                className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all outline-none"
+                className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none"
                 value={selectedUserId}
                 onChange={(e) => setSelectedUserId(e.target.value)}
                 disabled={loading}
