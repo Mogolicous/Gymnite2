@@ -24,6 +24,7 @@ import { PLAN_TIERS, planByMonthsAndType } from "@/lib/plans";
 import { toast } from "sonner";
 import AdminReservations from "./AdminReservations";
 import AdminReports from "./AdminReports";
+import HardwareConfig from "./HardwareConfig";
 
 const STATUS_META = {
   no_subscribed: { label: "No Suscrito", pill: "bg-zinc-500/10 text-zinc-300 border-zinc-500/30" },
@@ -623,12 +624,6 @@ export default function Admin() {
               <Plus className="h-4 w-4" /> Agregar usuario
             </button>
             <button
-              onClick={() => window.location.href = '/admin/hardware'}
-              className="rounded-full border border-zinc-800 hover:border-purple-500/50 px-5 py-2 text-sm text-zinc-300 hover:text-white transition-colors bg-purple-500/10"
-            >
-              🪪 Control RFID
-            </button>
-            <button
               onClick={load}
               className="rounded-full border border-zinc-800 hover:border-purple-500/50 px-5 py-2 text-sm text-zinc-300 hover:text-white transition-colors"
               data-testid="admin-refresh-btn"
@@ -663,6 +658,14 @@ export default function Admin() {
             }`}
           >
             Reportes y Analytics
+          </button>
+          <button
+            onClick={() => setActiveTab("rfid")}
+            className={`pb-3 px-2 text-sm font-medium transition-colors border-b-2 ${
+              activeTab === "rfid" ? "border-purple-500 text-purple-400" : "border-transparent text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            Control RFID
           </button>
         </div>
 
@@ -864,12 +867,10 @@ export default function Admin() {
         </div>
           </>
         )}
-        {activeTab === "reservations" && (
-          <AdminReservations />
-        )}
-        {activeTab === "reports" && (
-          <AdminReports />
-        )}
+
+        {activeTab === "reservations" && <AdminReservations />}
+        {activeTab === "reports" && <AdminReports />}
+        {activeTab === "rfid" && <HardwareConfig />}
       </div>
 
       {/* Modals */}

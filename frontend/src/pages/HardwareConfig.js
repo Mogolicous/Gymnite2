@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import Confetti from 'react-confetti';
 import { toast } from 'sonner';
 import api, { formatApiError } from '@/lib/api';
-import Navbar from '@/components/Navbar';
 
 const HardwareConfig = () => {
   const [mode, setMode] = useState('VALIDATION'); // 'VALIDATION' o 'ASSIGNMENT'
@@ -142,10 +141,7 @@ const HardwareConfig = () => {
 
   // Interfaz Principal
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-brand-500 selection:text-black">
-      <Navbar />
-      <div className="pt-24 pb-12 px-6 sm:px-8 max-w-7xl mx-auto">
-        <div className="max-w-2xl mx-auto p-8 bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+    <div className="max-w-2xl mx-auto p-8 bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl mt-4 mb-16">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-3xl font-bold text-white tracking-tight">Control RFID</h2>
             
@@ -197,8 +193,6 @@ const HardwareConfig = () => {
             </div>
           )}
         </div>
-      </div>
-    </div>
   );
 };
 
