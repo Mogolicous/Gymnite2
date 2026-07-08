@@ -1011,6 +1011,38 @@ async def get_my_evaluations(user: User = Depends(get_current_user), db: AsyncSe
     return result.scalars().all()
 
 # ----------------- Routines -----------------
+
+async def build_routine_out(r: Routine, db: AsyncSession) -> RoutineOut:
+    result = await db.execute(
+        select(RoutineExercise, Exercise)
+        .join(Exercise, RoutineExercise.exercise_id == Exercise.id)
+        .where(RoutineExercise.routine_id == r.id)
+    )
+    rows = result.all()
+    
+    import re
+    clean_objective = re.sub(r'\[ACTIVE:\d{4}-\d{2}-\d{2}\]\s*', '', r.objective or '')
+    
+    exercises_out = []
+    for rx, ex in rows:
+        exercises_out.append(RoutineExerciseOut(
+            id=rx.id,
+            routine_id=rx.routine_id,
+            name=ex.name,
+            sets=rx.sets,
+            reps=rx.reps,
+            rest_seconds=rx.rest_seconds,
+            image_url=ex.image_url
+        ))
+        
+    return RoutineOut(
+        id=r.id,
+        user_id=r.user_id or "",
+        name=r.name,
+        objective=clean_objective,
+        exercises=exercises_out
+    )
+
 @api_router.get("/routines/me", response_model=List[RoutineOut])
 async def get_my_routines(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     from datetime import date
@@ -1041,42 +1073,11 @@ async def get_my_routines(user: User = Depends(get_current_user), db: AsyncSessi
             random.seed(date.today().toordinal())
             routines = [random.choice(general_routines)]
     
-    if not routines:
-        # Create a default general routine if DB is empty
-        default_routine = Routine(
-            id=str(uuid.uuid4()),
-            user_id=None,
-            name="Rutina General Aleatoria (Demo)",
-            objective="Acondicionamiento General"
-        )
-        db.add(default_routine)
-        
-        exercises = [
-            RoutineExercise(id=str(uuid.uuid4()), routine_id=default_routine.id, name="Sentadillas libres", sets=4, reps=12, rest_seconds="60s"),
-            RoutineExercise(id=str(uuid.uuid4()), routine_id=default_routine.id, name="Press de Banca", sets=4, reps=10, rest_seconds="90s"),
-            RoutineExercise(id=str(uuid.uuid4()), routine_id=default_routine.id, name="Remo con barra", sets=4, reps=10, rest_seconds="90s"),
-            RoutineExercise(id=str(uuid.uuid4()), routine_id=default_routine.id, name="Plancha Abdominal", sets=3, reps=1, rest_seconds="45s")
-        ]
-        db.add_all(exercises)
-        await db.commit()
-        await db.refresh(default_routine)
-        routines = [default_routine]
+    # We removed the default routine creation because it's buggy and we already have a seed script for defaults.
     
     out = []
     for r in routines:
-        ex_res = await db.execute(select(RoutineExercise).where(RoutineExercise.routine_id == r.id))
-        exercises = ex_res.scalars().all()
-        import re
-        clean_objective = re.sub(r'\[ACTIVE:\d{4}-\d{2}-\d{2}\]\s*', '', r.objective or '')
-        out.append(RoutineOut(
-            id=r.id,
-            user_id=r.user_id or "",
-            name=r.name,
-            objective=clean_objective,
-            exercises=[RoutineExerciseOut(
-                id=e.id, routine_id=e.routine_id, name=e.name, sets=e.sets, reps=e.reps, rest_seconds=e.rest_seconds
-            ) for e in exercises]
-        ))
+        out.append(await build_routine_out(r, db))
     return out
 
 @api_router.post("/routines/generate-ai", response_model=RoutineOut)
@@ -1240,8 +1241,7 @@ async def get_general_routines(user: User = Depends(require_coach_or_admin), db:
     routines = result.scalars().all()
     out = []
     for r in routines:
-        ex_res = await db.execute(select(RoutineExercise).where(RoutineExercise.routine_id == r.id))
-        out.append(RoutineOut(id=r.id, user_id="", name=r.name, objective=r.objective, exercises=[RoutineExerciseOut(id=e.id, routine_id=e.routine_id, name=e.name, sets=e.sets, reps=e.reps, rest_seconds=e.rest_seconds, image_url=e.image_url) for e in ex_res.scalars().all()]))
+        out.append(await build_routine_out(r, db))
     return out
 
 @api_router.get("/routines/user/{user_id}", response_model=List[RoutineOut])
@@ -1250,8 +1250,7 @@ async def get_user_routines(user_id: str, user: User = Depends(require_coach_or_
     routines = result.scalars().all()
     out = []
     for r in routines:
-        ex_res = await db.execute(select(RoutineExercise).where(RoutineExercise.routine_id == r.id))
-        out.append(RoutineOut(id=r.id, user_id=r.user_id or "", name=r.name, objective=r.objective, exercises=[RoutineExerciseOut(id=e.id, routine_id=e.routine_id, name=e.name, sets=e.sets, reps=e.reps, rest_seconds=e.rest_seconds, image_url=e.image_url) for e in ex_res.scalars().all()]))
+        out.append(await build_routine_out(r, db))
     return out
 
 @api_router.delete("/routines/{routine_id}")
