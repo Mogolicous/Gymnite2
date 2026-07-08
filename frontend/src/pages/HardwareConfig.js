@@ -72,6 +72,7 @@ const HardwareConfig = () => {
       window.removeEventListener('keydown', handleKeyDown);
       clearTimeout(timeoutRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Dependencias vacías porque usa refs internamente
 
   // ====== MODO 2: Web Serial API (Arduino UNO Directo) ======
