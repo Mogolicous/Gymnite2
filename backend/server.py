@@ -264,7 +264,7 @@ async def serialize_user(u: User, db: AsyncSession) -> dict:
     result_rec = await db.execute(
         select(PaymentReceipt)
         .where(PaymentReceipt.user_id == u.id)
-        .order_by(desc(PaymentReceipt.uploaded_at))
+        .order_by(PaymentReceipt.uploaded_at.desc())
         .limit(1)
     )
     latest_receipt = result_rec.scalar_one_or_none()
@@ -708,7 +708,7 @@ async def get_receipt(user_id: str, admin: User = Depends(require_admin), db: As
     if not u:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
         
-    result_rec = await db.execute(select(PaymentReceipt).where(PaymentReceipt.user_id == user_id).order_by(desc(PaymentReceipt.uploaded_at)).limit(1))
+    result_rec = await db.execute(select(PaymentReceipt).where(PaymentReceipt.user_id == user_id).order_by(PaymentReceipt.uploaded_at.desc()).limit(1))
     latest_receipt = result_rec.scalar_one_or_none()
     
     if not latest_receipt or not latest_receipt.receipt_image:
