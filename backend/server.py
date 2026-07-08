@@ -707,9 +707,13 @@ async def get_receipt(user_id: str, admin: User = Depends(require_admin), db: As
     u = result.scalar_one_or_none()
     if not u:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    if not u.receipt_image:
+        
+    result_rec = await db.execute(select(PaymentReceipt).where(PaymentReceipt.user_id == user_id).order_by(desc(PaymentReceipt.uploaded_at)).limit(1))
+    latest_receipt = result_rec.scalar_one_or_none()
+    
+    if not latest_receipt or not latest_receipt.receipt_image:
         raise HTTPException(status_code=404, detail="No hay comprobante para este usuario")
-    return {"name": u.name, "email": u.email, "image": u.receipt_image}
+    return {"name": u.name, "email": u.email, "image": latest_receipt.receipt_image}
 
 @api_router.post("/admin/users/{user_id}/approve", response_model=UserOut)
 async def approve_user(user_id: str, payload: ApproveIn, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
@@ -1163,15 +1167,32 @@ async def generate_ai_routine(payload: GenerateRoutineIn, user: User = Depends(g
         exercises_out = []
         for ex in data.get("exercises", [])[:5]:
             ex_name = ex.get("name", "Ejercicio")
+            
+            # Buscamos o creamos el ejercicio
+            result_ex = await db.execute(select(Exercise).where(Exercise.name == ex_name))
+            ex_obj = result_ex.scalar_one_or_none()
+            if not ex_obj:
+                ex_obj = Exercise(
+                    id=str(uuid.uuid4()),
+                    name=ex_name,
+                    body_part=payload.muscle,
+                    image_url=get_wger_image(ex_name)
+                )
+                db.add(ex_obj)
+                await db.flush() # Para obtener el ID
+                
             new_ex = RoutineExercise(
                 id=str(uuid.uuid4()),
                 routine_id=new_routine.id,
-                name=ex_name,
+                exercise_id=ex_obj.id,
                 sets=ex.get("sets", 3),
                 reps=ex.get("reps", 10),
-                rest_seconds=ex.get("rest_seconds", "60s"),
-                image_url=get_wger_image(ex_name)
+                rest_seconds=ex.get("rest_seconds", "60s")
             )
+            # Para la respuesta al frontend, necesitamos inyectarle los campos visuales
+            new_ex.name = ex_obj.name
+            new_ex.image_url = ex_obj.image_url
+            
             db.add(new_ex)
             exercises_out.append(new_ex)
             
