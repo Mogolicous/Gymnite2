@@ -623,6 +623,12 @@ export default function Admin() {
               <Plus className="h-4 w-4" /> Agregar usuario
             </button>
             <button
+              onClick={() => window.location.href = '/admin/hardware'}
+              className="rounded-full border border-zinc-800 hover:border-purple-500/50 px-5 py-2 text-sm text-zinc-300 hover:text-white transition-colors bg-purple-500/10"
+            >
+              🪪 Control RFID
+            </button>
+            <button
               onClick={load}
               className="rounded-full border border-zinc-800 hover:border-purple-500/50 px-5 py-2 text-sm text-zinc-300 hover:text-white transition-colors"
               data-testid="admin-refresh-btn"
