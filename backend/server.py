@@ -1064,20 +1064,14 @@ async def get_my_routines(user: User = Depends(get_current_user), db: AsyncSessi
     plan_type = active_sub.plan_type if active_sub else "free"
     
     if plan_type == "premium":
-        # Premium users get custom routines PLUS the active general routine
+        # Premium users get custom routines PLUS all general routines
         result = await db.execute(select(Routine).where(Routine.user_id == user.id))
         user_routines = result.scalars().all()
-        if active_today:
-            routines.append(active_today)
+        routines.extend(general_routines)
         routines.extend(user_routines)
     else:
-        # Standard users get the active general routine or a random one
-        if active_today:
-            routines = [active_today]
-        elif general_routines:
-            import random
-            random.seed(date.today().toordinal())
-            routines = [random.choice(general_routines)]
+        # Standard users get ALL general routines
+        routines.extend(general_routines)
     
     # We removed the default routine creation because it's buggy and we already have a seed script for defaults.
     
