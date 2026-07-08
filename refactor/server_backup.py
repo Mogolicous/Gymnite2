@@ -17,8 +17,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import declarative_base, Mapped, mapped_column, relationship
-from sqlalchemy import String, Boolean, Integer, Text, Float, ForeignKey, select, update, delete, func, DateTime
+from sqlalchemy.orm import declarative_base, Mapped, mapped_column
+from sqlalchemy import String, Boolean, Integer, Text, Float, ForeignKey, select, update, delete, func
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -74,92 +74,48 @@ logger = logging.getLogger("gymnite")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # ----------------- DB Model -----------------
-class Role(Base):
-    __tablename__ = "roles"
-    id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String, unique=True, index=True)
-    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-
-class UserCredential(Base):
-    __tablename__ = "user_credentials"
-    id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
-    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), unique=True)
-    password_hash: Mapped[str] = mapped_column(String)
-    
-    user = relationship("User", back_populates="credential")
-
 class User(Base):
     __tablename__ = "users"
+    
     id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
-    role_id: Mapped[str] = mapped_column(String, ForeignKey("roles.id"))
     name: Mapped[str] = mapped_column(String(80))
     email: Mapped[Optional[str]] = mapped_column(String, unique=True, index=True, nullable=True)
-    rfid_uid: Mapped[Optional[str]] = mapped_column(String, unique=True, index=True, nullable=True)
+    password_hash: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    role: Mapped[str] = mapped_column(String, default="user")
+    status: Mapped[str] = mapped_column(String, default="no_subscribed")
+    receipt_image: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    receipt_uploaded_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    approved_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    manual: Mapped[bool] = mapped_column(Boolean, default=False)
+    plan_months: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    plan_type: Mapped[str] = mapped_column(String, default="pesas")
+    plan_started_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    plan_expires_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    requested_plan_months: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    requested_plan_type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    last_admin_action: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    last_admin_action_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    reset_code: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    reset_code_expires_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     email_changes_count: Mapped[int] = mapped_column(Integer, default=0)
-    
-    role = relationship("Role", lazy="joined")
-    credential = relationship("UserCredential", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    password_resets = relationship("PasswordReset", back_populates="user", cascade="all, delete-orphan")
-    subscriptions = relationship("Subscription", back_populates="user", cascade="all, delete-orphan")
-    payment_receipts = relationship("PaymentReceipt", back_populates="user", cascade="all, delete-orphan")
-
-class PasswordReset(Base):
-    __tablename__ = "password_resets"
-    id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
-    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), index=True)
-    code: Mapped[str] = mapped_column(String)
-    expires_at: Mapped[str] = mapped_column(String)
-    
-    user = relationship("User", back_populates="password_resets")
-
-class Subscription(Base):
-    __tablename__ = "subscriptions"
-    id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
-    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), index=True)
-    plan_type: Mapped[str] = mapped_column(String)
-    plan_months: Mapped[int] = mapped_column(Integer)
-    started_at: Mapped[str] = mapped_column(String)
-    expires_at: Mapped[str] = mapped_column(String)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    
-    user = relationship("User", back_populates="subscriptions")
-
-class PaymentReceipt(Base):
-    __tablename__ = "payment_receipts"
-    id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
-    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), index=True)
-    receipt_image: Mapped[str] = mapped_column(Text)
-    requested_plan_type: Mapped[str] = mapped_column(String)
-    requested_plan_months: Mapped[int] = mapped_column(Integer)
-    uploaded_at: Mapped[str] = mapped_column(String)
-    status: Mapped[str] = mapped_column(String, default="pending") # pending, approved, rejected
-    reviewed_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    admin_action_notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    
-    user = relationship("User", back_populates="payment_receipts")
 
 class Attendance(Base):
     __tablename__ = "attendance"
     id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), index=True)
+    date: Mapped[str] = mapped_column(String, index=True)  # Format: YYYY-MM-DD
     timestamp: Mapped[str] = mapped_column(String)
 
 class PhysicalEvaluation(Base):
     __tablename__ = "physical_evaluations"
     id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), index=True)
-    date: Mapped[str] = mapped_column(String)
+    date: Mapped[str] = mapped_column(String)  # Format: YYYY-MM-DD
     weight_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     body_fat_pct: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     muscle_mass_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-class Exercise(Base):
-    __tablename__ = "exercises"
-    id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String, unique=True)
-    image_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
 class Routine(Base):
     __tablename__ = "routines"
@@ -172,10 +128,11 @@ class RoutineExercise(Base):
     __tablename__ = "routine_exercises"
     id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
     routine_id: Mapped[str] = mapped_column(String, ForeignKey("routines.id"), index=True)
-    exercise_id: Mapped[str] = mapped_column(String, ForeignKey("exercises.id"), index=True)
+    name: Mapped[str] = mapped_column(String)
     sets: Mapped[int] = mapped_column(Integer)
     reps: Mapped[int] = mapped_column(Integer)
     rest_seconds: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    image_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
 class ClassReservation(Base):
     __tablename__ = "class_reservations"
@@ -234,84 +191,26 @@ def clear_auth_cookies(response: Response) -> None:
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("refresh_token", path="/")
 
-async def serialize_user(u: User, db: AsyncSession) -> dict:
-    from sqlalchemy import select, desc
-    
-    status = "no_subscribed"
-    has_receipt = False
-    receipt_uploaded_at = None
-    approved_at = None
-    plan_months = None
-    plan_type = "pesas"
-    plan_started_at = None
-    plan_expires_at = None
-    requested_plan_months = None
-    requested_plan_type = None
-    last_admin_action = None
-    last_admin_action_at = None
-    rfid_uid = u.rfid_uid
-    
-    # 1. Check Subscriptions
-    result_sub = await db.execute(
-        select(Subscription)
-        .where(Subscription.user_id == u.id, Subscription.is_active == True)
-        .order_by(desc(Subscription.started_at))
-        .limit(1)
-    )
-    active_sub = result_sub.scalar_one_or_none()
-    
-    # 2. Check Receipts
-    result_rec = await db.execute(
-        select(PaymentReceipt)
-        .where(PaymentReceipt.user_id == u.id)
-        .order_by(desc(PaymentReceipt.uploaded_at))
-        .limit(1)
-    )
-    latest_receipt = result_rec.scalar_one_or_none()
-    
-    if active_sub:
-        status = "subscribed"
-        plan_months = active_sub.plan_months
-        plan_type = active_sub.plan_type
-        plan_started_at = active_sub.started_at
-        plan_expires_at = active_sub.expires_at
-        approved_at = active_sub.started_at
-    elif latest_receipt and latest_receipt.status == "pending":
-        status = "pending"
-    
-    if latest_receipt:
-        has_receipt = True if latest_receipt.receipt_image else False
-        receipt_uploaded_at = latest_receipt.uploaded_at
-        requested_plan_months = latest_receipt.requested_plan_months
-        requested_plan_type = latest_receipt.requested_plan_type
-        
-        if latest_receipt.status == "approved":
-            last_admin_action = "approved"
-            last_admin_action_at = latest_receipt.reviewed_at
-        elif latest_receipt.status == "rejected":
-            last_admin_action = "rejected"
-            last_admin_action_at = latest_receipt.reviewed_at
-            
+def serialize_user(u: User) -> dict:
     return {
         "id": u.id,
         "name": u.name,
         "email": u.email,
-        "role": u.role.name if u.role else "user",
-        "status": status,
-        "has_receipt": has_receipt,
-        "receipt_uploaded_at": receipt_uploaded_at,
-        "approved_at": approved_at,
+        "role": u.role,
+        "status": u.status,
+        "has_receipt": bool(u.receipt_image),
+        "receipt_uploaded_at": u.receipt_uploaded_at,
+        "approved_at": u.approved_at,
         "created_at": u.created_at,
-        "manual": False,
-        "plan_months": plan_months,
-        "plan_type": plan_type,
-        "plan_started_at": plan_started_at,
-        "plan_expires_at": plan_expires_at,
-        "requested_plan_months": requested_plan_months,
-        "requested_plan_type": requested_plan_type,
-        "last_admin_action": last_admin_action,
-        "last_admin_action_at": last_admin_action_at,
-        "rfid_uid": rfid_uid,
+        "manual": u.manual,
+        "plan_months": u.plan_months,
+        "plan_type": u.plan_type,
+        "plan_started_at": u.plan_started_at,
+        "plan_expires_at": u.plan_expires_at,
+        "requested_plan_months": u.requested_plan_months,
+        "requested_plan_type": u.requested_plan_type,
+        "last_admin_action": u.last_admin_action,
+        "last_admin_action_at": u.last_admin_action_at,
         "email_changes_count": u.email_changes_count,
     }
 
@@ -339,12 +238,12 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
         raise HTTPException(status_code=401, detail="Token inválido")
 
 async def require_admin(user: User = Depends(get_current_user)) -> User:
-    if user.role.name != "admin":
+    if user.role != "admin":
         raise HTTPException(status_code=403, detail="Se requieren permisos de administrador")
     return user
 
 async def require_coach_or_admin(user: User = Depends(get_current_user)) -> User:
-    if user.role.name not in ["admin", "coach"]:
+    if user.role not in ["admin", "coach"]:
         raise HTTPException(status_code=403, detail="Se requieren permisos de coach o administrador")
     return user
 
@@ -478,48 +377,43 @@ async def register(payload: RegisterIn, response: Response, db: AsyncSession = D
         raise HTTPException(status_code=400, detail="El correo ya está registrado")
     
     user_id = str(uuid.uuid4())
-    result_role = await db.execute(select(Role).where(Role.name == "user"))
-    user_role = result_role.scalar_one_or_none()
-    if not user_role:
-        raise HTTPException(status_code=500, detail="Error interno: Rol no encontrado")
-        
     new_user = User(
         id=user_id,
-        role_id=user_role.id,
         name=payload.name.strip(),
         email=email,
+        password_hash=hash_password(payload.password),
+        role="user",
+        status="no_subscribed",
+        receipt_image=None,
+        receipt_uploaded_at=None,
+        approved_at=None,
         created_at=datetime.now(timezone.utc).isoformat(),
-        email_changes_count=0
+        manual=False,
+        plan_months=None,
+        plan_started_at=None,
+        plan_expires_at=None,
     )
     db.add(new_user)
-    
-    cred = UserCredential(
-        id=str(uuid.uuid4()),
-        user_id=user_id,
-        password_hash=hash_password(payload.password)
-    )
-    db.add(cred)
     await db.commit()
     await db.refresh(new_user)
 
     access = create_access_token(user_id, email, "user")
     refresh = create_refresh_token(user_id)
     set_auth_cookies(response, access, refresh)
-    return await serialize_user(new_user, db)
+    return serialize_user(new_user)
 
 @api_router.post("/auth/login", response_model=UserOut)
 async def login(payload: LoginIn, response: Response, db: AsyncSession = Depends(get_db)):
     email = payload.email.lower().strip()
-    from sqlalchemy.orm import selectinload
-    result = await db.execute(select(User).options(selectinload(User.credential)).where(User.email == email))
+    result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
-    if not user or not user.credential or not verify_password(payload.password, user.credential.password_hash):
+    if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
     
-    access = create_access_token(user.id, user.email, user.role.name)
+    access = create_access_token(user.id, user.email, user.role)
     refresh = create_refresh_token(user.id)
     set_auth_cookies(response, access, refresh)
-    return await serialize_user(user, db)
+    return serialize_user(user)
 
 @api_router.post("/auth/logout")
 async def logout(response: Response):
@@ -535,19 +429,12 @@ async def forgot_password(payload: ForgotPasswordIn, db: AsyncSession = Depends(
     if not user:
         return {"ok": True, "message": "Si el correo está registrado, se enviará un código de recuperación."}
     
+    # Generate 6-digit code
     code = "".join(str(secrets.randbelow(10)) for _ in range(6))
     expiration = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
     
-    # delete old ones
-    await db.execute(delete(PasswordReset).where(PasswordReset.user_id == user.id))
-    
-    pr = PasswordReset(
-        id=str(uuid.uuid4()),
-        user_id=user.id,
-        code=code,
-        expires_at=expiration
-    )
-    db.add(pr)
+    user.reset_code = code
+    user.reset_code_expires_at = expiration
     await db.commit()
     
     # Aesthetic HTML Email
@@ -589,35 +476,24 @@ async def reset_password(payload: ResetPasswordIn, db: AsyncSession = Depends(ge
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     
-    if not user:
+    if not user or not user.reset_code or user.reset_code != payload.code:
         raise HTTPException(status_code=400, detail="El código es incorrecto.")
         
-    res_pr = await db.execute(select(PasswordReset).where(PasswordReset.user_id == user.id, PasswordReset.code == payload.code))
-    pr = res_pr.scalar_one_or_none()
-    
-    if not pr:
-        raise HTTPException(status_code=400, detail="El código es incorrecto.")
-        
-    expiration = datetime.fromisoformat(pr.expires_at)
-    if datetime.now(timezone.utc) > expiration:
-        raise HTTPException(status_code=400, detail="El código ha expirado.")
+    if user.reset_code_expires_at:
+        expiration = datetime.fromisoformat(user.reset_code_expires_at)
+        if datetime.now(timezone.utc) > expiration:
+            raise HTTPException(status_code=400, detail="El código ha expirado.")
             
-    res_cred = await db.execute(select(UserCredential).where(UserCredential.user_id == user.id))
-    cred = res_cred.scalar_one_or_none()
-    if cred:
-        cred.password_hash = hash_password(payload.new_password)
-    else:
-        cred = UserCredential(id=str(uuid.uuid4()), user_id=user.id, password_hash=hash_password(payload.new_password))
-        db.add(cred)
-        
-    await db.execute(delete(PasswordReset).where(PasswordReset.user_id == user.id))
+    user.password_hash = hash_password(payload.new_password)
+    user.reset_code = None
+    user.reset_code_expires_at = None
     await db.commit()
     
     return {"ok": True, "message": "Contraseña actualizada exitosamente."}
 
 @api_router.get("/auth/me", response_model=UserOut)
 async def me(user: User = Depends(get_current_user)):
-    return await serialize_user(user, db)
+    return serialize_user(user)
 
 @api_router.post("/me/dismiss-notification", response_model=UserOut)
 async def dismiss_notification(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -625,13 +501,11 @@ async def dismiss_notification(user: User = Depends(get_current_user), db: Async
     user.last_admin_action_at = None
     await db.commit()
     await db.refresh(user)
-    return await serialize_user(user, db)
+    return serialize_user(user)
 
 @api_router.post("/me/change-email", response_model=UserOut)
 async def change_email(payload: ChangeEmailIn, response: Response, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    res_cred = await db.execute(select(UserCredential).where(UserCredential.user_id == user.id))
-    cred = res_cred.scalar_one_or_none()
-    if not cred or not verify_password(payload.current_password, cred.password_hash):
+    if not verify_password(payload.current_password, user.password_hash):
         raise HTTPException(status_code=401, detail="La contraseña actual es incorrecta.")
         
     if user.email_changes_count >= 3:
@@ -652,7 +526,7 @@ async def change_email(payload: ChangeEmailIn, response: Response, user: User = 
     await db.refresh(user)
     
     clear_auth_cookies(response)
-    return await serialize_user(user, db)
+    return serialize_user(user)
 
 # ----------------- Receipts -----------------
 @api_router.post("/receipts/upload", response_model=UserOut)
@@ -679,27 +553,23 @@ async def upload_receipt(
     b64 = "data:image/jpeg;base64," + base64.b64encode(data).decode("utf-8")
     now = datetime.now(timezone.utc).isoformat()
     
-    receipt = PaymentReceipt(
-        id=str(uuid.uuid4()),
-        user_id=user.id,
-        receipt_image=b64,
-        requested_plan_type=plan_type,
-        requested_plan_months=plan_months or 1,
-        uploaded_at=now,
-        status="pending"
-    )
-    db.add(receipt)
+    user.receipt_image = b64
+    user.receipt_uploaded_at = now
+    user.status = "pending"
+    if plan_months is not None:
+        user.requested_plan_months = plan_months
+    user.requested_plan_type = plan_type
         
     await db.commit()
     await db.refresh(user)
-    return await serialize_user(user, db)
+    return serialize_user(user)
 
 # ----------------- Admin -----------------
 @api_router.get("/admin/users", response_model=List[UserOut])
 async def get_all_users(user: User = Depends(require_coach_or_admin), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.role_id != (select(Role.id).where(Role.name == "admin").scalar_subquery())).order_by(User.created_at.desc()))
+    result = await db.execute(select(User).where(User.role != "admin").order_by(User.created_at.desc()))
     users = result.scalars().all()
-    return [await serialize_user(u, db) for u in users]
+    return [serialize_user(u) for u in users]
 
 @api_router.get("/admin/users/{user_id}/receipt")
 async def get_receipt(user_id: str, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
@@ -722,33 +592,26 @@ async def approve_user(user_id: str, payload: ApproveIn, admin: User = Depends(r
     u = result.scalar_one_or_none()
     if not u:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    if u.role.name == "admin":
+    if u.role == "admin":
         raise HTTPException(status_code=400, detail="No se puede modificar al administrador")
     
     now = datetime.now(timezone.utc)
     expires = now + timedelta(days=30 * payload.plan_months)
     
-    # approve pending receipt
-    result_rec = await db.execute(select(PaymentReceipt).where(PaymentReceipt.user_id == user_id, PaymentReceipt.status == "pending"))
-    rec = result_rec.scalar_one_or_none()
-    if rec:
-        rec.status = "approved"
-        rec.reviewed_at = now.isoformat()
-        
-    sub = Subscription(
-        id=str(uuid.uuid4()),
-        user_id=user_id,
-        plan_type=payload.plan_type,
-        plan_months=payload.plan_months,
-        started_at=now.isoformat(),
-        expires_at=expires.isoformat(),
-        is_active=True
-    )
-    db.add(sub)
+    u.status = "subscribed"
+    u.approved_at = now.isoformat()
+    u.plan_months = payload.plan_months
+    u.plan_type = payload.plan_type
+    u.plan_started_at = now.isoformat()
+    u.plan_expires_at = expires.isoformat()
+    u.last_admin_action = "approved"
+    u.last_admin_action_at = now.isoformat()
+    u.requested_plan_months = None
+    u.requested_plan_type = None
     
     await db.commit()
     await db.refresh(u)
-    return await serialize_user(u, db)
+    return serialize_user(u)
 
 @api_router.post("/admin/users/{user_id}/reject", response_model=UserOut)
 async def reject_user(user_id: str, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
@@ -756,19 +619,23 @@ async def reject_user(user_id: str, admin: User = Depends(require_admin), db: As
     u = result.scalar_one_or_none()
     if not u:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    if u.role.name == "admin":
+    if u.role == "admin":
         raise HTTPException(status_code=400, detail="No se puede modificar al administrador")
     
-    result_rec = await db.execute(select(PaymentReceipt).where(PaymentReceipt.user_id == user_id, PaymentReceipt.status == "pending"))
-    rec = result_rec.scalar_one_or_none()
-    now = datetime.now(timezone.utc)
-    if rec:
-        rec.status = "rejected"
-        rec.reviewed_at = now.isoformat()
+    u.status = "no_subscribed"
+    u.receipt_image = None
+    u.receipt_uploaded_at = None
+    u.approved_at = None
+    u.plan_months = None
+    u.plan_started_at = None
+    u.plan_expires_at = None
+    u.requested_plan_months = None
+    u.last_admin_action = "rejected"
+    u.last_admin_action_at = datetime.now(timezone.utc).isoformat()
     
     await db.commit()
     await db.refresh(u)
-    return await serialize_user(u, db)
+    return serialize_user(u)
 
 @api_router.post("/admin/users/manual", response_model=UserOut)
 async def create_manual_user(
@@ -809,47 +676,26 @@ async def create_manual_user(
         status = "pending"
 
     user_id = str(uuid.uuid4())
-    result_role = await db.execute(select(Role).where(Role.name == role))
-    user_role = result_role.scalar_one_or_none()
-        
     new_user = User(
         id=user_id,
         name=name_clean,
         email=email_clean,
-        role_id=user_role.id if user_role else None,
+        password_hash=None,
+        role=role,
+        status=status,
+        receipt_image=receipt_b64,
+        receipt_uploaded_at=receipt_at,
+        approved_at=None,
         created_at=datetime.now(timezone.utc).isoformat(),
-        email_changes_count=0
+        manual=True,
+        plan_months=None,
+        plan_started_at=None,
+        plan_expires_at=None,
     )
     db.add(new_user)
-    
-    if receipt_b64:
-        receipt = PaymentReceipt(
-            id=str(uuid.uuid4()),
-            user_id=user_id,
-            receipt_image=receipt_b64,
-            requested_plan_type="pesas",
-            requested_plan_months=1,
-            uploaded_at=receipt_at,
-            status="pending"
-        )
-        db.add(receipt)
-        
-    if role in ["coach", "admin"]:
-        sub = Subscription(
-            id=str(uuid.uuid4()),
-            user_id=user_id,
-            plan_type="premium",
-            plan_months=1200,
-            started_at=datetime.now(timezone.utc).isoformat(),
-            expires_at=(datetime.now(timezone.utc) + timedelta(days=36500)).isoformat(),
-            is_active=True
-        )
-        db.add(sub)
-    
-    # We remove the db.add(new_user) from below since we just did it
     await db.commit()
     await db.refresh(new_user)
-    return await serialize_user(new_user, db)
+    return serialize_user(new_user)
 
 @api_router.delete("/admin/users/{user_id}")
 async def delete_user(user_id: str, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
@@ -857,7 +703,7 @@ async def delete_user(user_id: str, admin: User = Depends(require_admin), db: As
     u = result.scalar_one_or_none()
     if not u:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    if u.role.name == "admin":
+    if u.role == "admin":
         raise HTTPException(status_code=400, detail="No se puede eliminar al administrador")
     
     await db.delete(u)
@@ -866,36 +712,25 @@ async def delete_user(user_id: str, admin: User = Depends(require_admin), db: As
 
 @api_router.get("/admin/stats")
 async def admin_stats(admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.role_id == (select(Role.id).where(Role.name == "user").scalar_subquery())))
-    users = result.scalars().all()
+    result_no_sub = await db.execute(select(func.count(User.id)).where(User.role == "user", User.status == "no_subscribed"))
+    no_sub = result_no_sub.scalar_one()
     
-    no_sub = 0
-    pending = 0
-    subscribed = 0
+    result_pending = await db.execute(select(func.count(User.id)).where(User.role == "user", User.status == "pending"))
+    pending = result_pending.scalar_one()
     
-    for u in users:
-        s_user = await serialize_user(u, db)
-        if s_user["status"] == "subscribed":
-            subscribed += 1
-        elif s_user["status"] == "pending":
-            pending += 1
-        else:
-            no_sub += 1
-            
+    result_subscribed = await db.execute(select(func.count(User.id)).where(User.role == "user", User.status == "subscribed"))
+    subscribed = result_subscribed.scalar_one()
+    
     return {"no_subscribed": no_sub, "pending": pending, "subscribed": subscribed}
 
 @api_router.get("/admin/reports")
 async def admin_reports(admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
-    result_total = await db.execute(select(User).where(User.role_id == (select(Role.id).where(Role.name == "user").scalar_subquery())))
-    all_users = result_total.scalars().all()
-    total_users = len(all_users)
+    result_total = await db.execute(select(func.count(User.id)).where(User.role == "user"))
+    total_users = result_total.scalar_one()
 
-    active_users_list = []
-    for u in all_users:
-        s_user = await serialize_user(u, db)
-        if s_user["status"] == "subscribed":
-            active_users_list.append(s_user)
-            
+    result_active_users = await db.execute(select(User).where(User.role == "user", User.status == "subscribed"))
+    active_users_list = result_active_users.scalars().all()
+    
     active_users = len(active_users_list)
     
     mrr = 0
@@ -911,17 +746,18 @@ async def admin_reports(admin: User = Depends(require_admin), db: AsyncSession =
     expiring_soon = 0
     
     for u in active_users_list:
-        ptype = u["plan_type"] or "pesas"
-        pmonths = u["plan_months"] or 1
+        ptype = u.plan_type or "pesas"
+        pmonths = u.plan_months or 1
         price = plan_prices.get(ptype, plan_prices["pesas"]).get(pmonths, 25)
         monthly_value = price / pmonths
         mrr += monthly_value
         if ptype in revenue_by_plan:
             revenue_by_plan[ptype] += monthly_value
             
-        if u["plan_expires_at"]:
+        if u.plan_expires_at:
             try:
-                exp_date_str = u["plan_expires_at"].replace("Z", "+00:00")
+                # Handle ISO format potentially ending in Z
+                exp_date_str = u.plan_expires_at.replace("Z", "+00:00")
                 exp_date = datetime.fromisoformat(exp_date_str)
                 if exp_date.tzinfo is None:
                     exp_date = exp_date.replace(tzinfo=timezone.utc)
@@ -931,14 +767,10 @@ async def admin_reports(admin: User = Depends(require_admin), db: AsyncSession =
                 pass
 
     thirty_days_ago = (now - timedelta(days=30)).strftime("%Y-%m-%d")
-    result_att = await db.execute(select(Attendance.timestamp).where(Attendance.timestamp >= thirty_days_ago))
-    attendance_data = result_att.scalars().all()
+    result_att = await db.execute(select(Attendance.date, func.count(Attendance.id)).where(Attendance.date >= thirty_days_ago).group_by(Attendance.date).order_by(Attendance.date.asc()))
+    attendance_data = result_att.all()
+    trend_dict = {row[0]: row[1] for row in attendance_data}
     
-    trend_dict = {}
-    for ts in attendance_data:
-        date_str = ts.split("T")[0]
-        trend_dict[date_str] = trend_dict.get(date_str, 0) + 1
-        
     filled_trend = []
     for i in range(30):
         d = (now - timedelta(days=29 - i)).strftime("%Y-%m-%d")
@@ -1330,72 +1162,6 @@ async def get_all_reservations(date: str, admin: User = Depends(require_coach_or
         ))
     return out
 
-# ----------------- Hardware / RFID -----------------
-
-class AssignCardIn(BaseModel):
-    userId: str
-    rfidUid: str
-
-@api_router.post("/hardware/assign-card")
-async def assign_card(payload: AssignCardIn, admin: User = Depends(require_coach_or_admin), db: AsyncSession = Depends(get_db)):
-    # Check if card is already in use
-    res = await db.execute(select(User).where(User.rfid_uid == payload.rfidUid))
-    existing = res.scalar_one_or_none()
-    if existing:
-        raise HTTPException(status_code=400, detail="Esta tarjeta ya está asignada a otro usuario.")
-    
-    # Assign to user
-    res = await db.execute(select(User).where(User.id == payload.userId))
-    user = res.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
-    
-    user.rfid_uid = payload.rfidUid
-    await db.commit()
-    return {"message": "Tarjeta vinculada exitosamente", "name": user.name}
-
-@api_router.get("/hardware/verify-access")
-async def verify_access(rfidUid: str, db: AsyncSession = Depends(get_db)):
-    res = await db.execute(select(User).where(User.rfid_uid == rfidUid))
-    user = res.scalar_one_or_none()
-    
-    if not user:
-        return {"status": "NOT_FOUND"}
-    
-    # Check active subscription
-    sub_res = await db.execute(select(Subscription).where(Subscription.user_id == user.id, Subscription.is_active == True))
-    active_subs = sub_res.scalars().all()
-    
-    status = "EXPIRED"
-    expires_at = None
-    
-    if active_subs:
-        # Find the one with the furthest expiry date
-        furthest_sub = max(active_subs, key=lambda s: datetime.fromisoformat(s.expires_at) if s.expires_at else datetime.min)
-        expires_at = furthest_sub.expires_at
-        
-        # Check if it's actually in the future
-        if expires_at:
-            exp_date = datetime.fromisoformat(expires_at)
-            if exp_date > datetime.now(timezone.utc):
-                status = "ACTIVE"
-                
-                # Log attendance
-                attendance = Attendance(
-                    id=str(uuid.uuid4()),
-                    user_id=user.id,
-                    timestamp=datetime.now(timezone.utc).isoformat()
-                )
-                db.add(attendance)
-                await db.commit()
-
-    return {
-        "id": user.id,
-        "name": user.name,
-        "status": status,
-        "membershipExpires": expires_at
-    }
-
 # ----------------- Health -----------------
 @api_router.get("/")
 async def root():
@@ -1451,12 +1217,6 @@ async def on_startup():
             await conn.commit()
         except Exception:
             await conn.rollback()
-            
-        try:
-            await conn.execute(text("ALTER TABLE users ADD COLUMN rfid_uid VARCHAR UNIQUE"))
-            await conn.commit()
-        except Exception:
-            await conn.rollback()
         
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@gymnite.com").lower().strip()
     admin_password = os.environ.get("ADMIN_PASSWORD", "12345")
@@ -1466,11 +1226,26 @@ async def on_startup():
         existing = result.scalar_one_or_none()
         
         if existing is None:
-            # We don't need to auto-seed here because seed_admin.py handles it
-            pass
-        else:
-            # We skip password check in startup to avoid complexity, seed_admin handles the admin.
-            pass
+            new_admin = User(
+                id=str(uuid.uuid4()),
+                name="Administrador",
+                email=admin_email,
+                password_hash=hash_password(admin_password),
+                role="admin",
+                status="subscribed",
+                receipt_image=None,
+                receipt_uploaded_at=None,
+                approved_at=None,
+                created_at=datetime.now(timezone.utc).isoformat(),
+            )
+            session.add(new_admin)
+            await session.commit()
+            logger.info(f"Admin seeded: {admin_email}")
+        elif not verify_password(admin_password, existing.password_hash):
+            existing.password_hash = hash_password(admin_password)
+            existing.role = "admin"
+            await session.commit()
+            logger.info(f"Admin password updated: {admin_email}")
 
 @app.on_event("shutdown")
 async def on_shutdown():

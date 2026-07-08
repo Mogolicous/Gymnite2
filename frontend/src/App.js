@@ -10,6 +10,7 @@ import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
 import CoachDashboard from "@/pages/CoachDashboard";
 import ForgotPassword from "@/pages/ForgotPassword";
+import HardwareConfig from "@/pages/HardwareConfig";
 import { Toaster } from "sonner";
 
 function GuestOnly({ children }) {
@@ -65,6 +66,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute role="admin">
             <Admin />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/hardware"
+        element={
+          <ProtectedRoute role="admin">
+            <HardwareConfig />
           </ProtectedRoute>
         }
       />
