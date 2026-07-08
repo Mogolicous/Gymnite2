@@ -1057,7 +1057,13 @@ async def get_my_routines(user: User = Depends(get_current_user), db: AsyncSessi
 
     routines = []
     
-    if user.plan_type == "premium":
+    # Check subscription for plan type
+    from sqlalchemy import desc
+    result_sub = await db.execute(select(Subscription).where(Subscription.user_id == user.id, Subscription.is_active == True).order_by(desc(Subscription.started_at)).limit(1))
+    active_sub = result_sub.scalar_one_or_none()
+    plan_type = active_sub.plan_type if active_sub else "free"
+    
+    if plan_type == "premium":
         # Premium users get custom routines PLUS the active general routine
         result = await db.execute(select(Routine).where(Routine.user_id == user.id))
         user_routines = result.scalars().all()
