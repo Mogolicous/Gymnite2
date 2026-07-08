@@ -1175,7 +1175,7 @@ async def generate_ai_routine(payload: GenerateRoutineIn, user: User = Depends(g
                 ex_obj = Exercise(
                     id=str(uuid.uuid4()),
                     name=ex_name,
-                    body_part=payload.muscle,
+                    
                     image_url=get_wger_image(ex_name)
                 )
                 db.add(ex_obj)
