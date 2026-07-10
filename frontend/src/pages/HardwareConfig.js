@@ -107,6 +107,67 @@ const HardwareConfig = () => {
     };
   }, []);
 
+  // Intentar auto-conectar si ya dimos permisos antes
+  useEffect(() => {
+    let mounted = true;
+    const tryAutoConnect = async () => {
+      if ('serial' in navigator) {
+        try {
+          const ports = await navigator.serial.getPorts();
+          if (ports.length > 0 && mounted) {
+            const port = ports[0];
+            await port.open({ baudRate: 9600 });
+            startReadingFromPort(port);
+            toast.success('Arduino auto-conectado exitosamente.');
+          }
+        } catch (e) {
+          console.error('Error auto-conectando:', e);
+        }
+      }
+    };
+    tryAutoConnect();
+    return () => { mounted = false; };
+  }, []);
+
+  const startReadingFromPort = async (port) => {
+    serialPortRef.current = port;
+    setSerialConnected(true);
+
+    const textDecoder = new TextDecoderStream();
+    streamClosedRef.current = port.readable.pipeTo(textDecoder.writable);
+    const reader = textDecoder.readable.getReader();
+    readerRef.current = reader;
+    keepReadingRef.current = true;
+
+    let serialBuffer = '';
+
+    try {
+      while (keepReadingRef.current) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        
+        if (value) {
+          serialBuffer += value;
+          const lines = serialBuffer.split('\n');
+          for (let i = 0; i < lines.length - 1; i++) {
+            const line = lines[i].trim();
+            if (line && line !== "INICIADO") {
+              handleScanWithRefs(line);
+            }
+          }
+          serialBuffer = lines[lines.length - 1];
+        }
+      }
+    } catch (error) {
+      // Ignorar el error de cancelación intencional
+    } finally {
+      if (readerRef.current) {
+        readerRef.current.releaseLock();
+        readerRef.current = null;
+      }
+    }
+  };
+
   const connectSerial = async () => {
     if (!('serial' in navigator)) {
       toast.error('Tu navegador no soporta Web Serial API. Usa Chrome, Edge u Opera en PC.');
@@ -116,44 +177,8 @@ const HardwareConfig = () => {
     try {
       const port = await navigator.serial.requestPort();
       await port.open({ baudRate: 9600 });
-      serialPortRef.current = port;
-      setSerialConnected(true);
+      startReadingFromPort(port);
       toast.success('Arduino conectado exitosamente por Serial.');
-
-      const textDecoder = new TextDecoderStream();
-      streamClosedRef.current = port.readable.pipeTo(textDecoder.writable);
-      const reader = textDecoder.readable.getReader();
-      readerRef.current = reader;
-      keepReadingRef.current = true;
-
-      let serialBuffer = '';
-
-      try {
-        while (keepReadingRef.current) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          
-          if (value) {
-            serialBuffer += value;
-            const lines = serialBuffer.split('\n');
-            for (let i = 0; i < lines.length - 1; i++) {
-              const line = lines[i].trim();
-              if (line && line !== "INICIADO") {
-                handleScanWithRefs(line);
-              }
-            }
-            serialBuffer = lines[lines.length - 1];
-          }
-        }
-      } catch (error) {
-        // Ignorar el error de cancelación intencional
-      } finally {
-        if (readerRef.current) {
-          readerRef.current.releaseLock();
-          readerRef.current = null;
-        }
-      }
-      
     } catch (error) {
       console.error(error);
       if (error.name === 'NotFoundError') {
