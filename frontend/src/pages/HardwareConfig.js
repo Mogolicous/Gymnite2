@@ -222,7 +222,7 @@ const HardwareConfig = () => {
           </div>
 
           <div className="text-center py-12 border-2 border-dashed border-white/10 rounded-2xl bg-black/20 mb-8 relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/5 to-purple-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/5 to-purple-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
             
             {!serialConnected && (
               <div className="mb-8">
