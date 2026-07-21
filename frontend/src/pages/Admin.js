@@ -870,7 +870,10 @@ export default function Admin() {
 
         {activeTab === "reservations" && <AdminReservations />}
         {activeTab === "reports" && <AdminReports />}
-        {activeTab === "rfid" && <HardwareConfig />}
+        
+        <div style={{ display: activeTab === "rfid" ? "block" : "none" }}>
+          <HardwareConfig />
+        </div>
       </div>
 
       {/* Modals */}
