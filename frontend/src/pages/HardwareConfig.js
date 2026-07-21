@@ -3,7 +3,7 @@ import Confetti from 'react-confetti';
 import { toast } from 'sonner';
 import api, { formatApiError } from '@/lib/api';
 
-const HardwareConfig = () => {
+const HardwareConfig = ({ isActive = true }) => {
   const [mode, setMode] = useState('VALIDATION'); // 'VALIDATION' o 'ASSIGNMENT'
   const [selectedUserId, setSelectedUserId] = useState('');
   const [users, setUsers] = useState([]);
@@ -247,26 +247,25 @@ const HardwareConfig = () => {
     }
   };
 
-  if (statusScreen) {
-    const bgColors = {
-      success: 'bg-green-500',
-      error: 'bg-red-600',
-      warning: 'bg-orange-500'
-    };
+  const bgColors = {
+    success: 'bg-green-500',
+    error: 'bg-red-600',
+    warning: 'bg-orange-500'
+  };
 
-    return (
-      <div className={`fixed inset-0 z-[100] flex items-center justify-center ${bgColors[statusScreen.type]} transition-colors duration-300`}>
-        {showConfetti && <Confetti />}
-        <h1 className="text-white text-6xl font-bold text-center px-4 drop-shadow-md">
-          {statusScreen.message}
-        </h1>
-      </div>
-    );
-  }
-
-  // Interfaz Principal
   return (
-    <div className="max-w-2xl mx-auto p-8 bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl mt-4 mb-16">
+    <>
+      {statusScreen && (
+        <div className={`fixed inset-0 z-[9999] flex items-center justify-center ${bgColors[statusScreen.type]} transition-colors duration-300`}>
+          {showConfetti && <Confetti />}
+          <h1 className="text-white text-6xl font-bold text-center px-4 drop-shadow-md">
+            {statusScreen.message}
+          </h1>
+        </div>
+      )}
+
+      <div style={{ display: isActive ? 'block' : 'none' }}>
+        <div className="max-w-2xl mx-auto p-8 bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl mt-4 mb-16">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-3xl font-bold text-white tracking-tight">Control RFID</h2>
             
@@ -335,6 +334,8 @@ const HardwareConfig = () => {
             </div>
           )}
         </div>
+      </div>
+    </>
   );
 };
 

@@ -871,9 +871,8 @@ export default function Admin() {
         {activeTab === "reservations" && <AdminReservations />}
         {activeTab === "reports" && <AdminReports />}
         
-        <div style={{ display: activeTab === "rfid" ? "block" : "none" }}>
-          <HardwareConfig />
-        </div>
+        {/* Render HardwareConfig always so Arduino doesn't disconnect, hide its UI internally */}
+        <HardwareConfig isActive={activeTab === "rfid"} />
       </div>
 
       {/* Modals */}
