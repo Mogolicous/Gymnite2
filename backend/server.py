@@ -1402,14 +1402,18 @@ async def verify_access(rfidUid: str, db: AsyncSession = Depends(get_db)):
             if exp_date > datetime.now(timezone.utc):
                 status = "ACTIVE"
                 
-                # Log attendance
-                attendance = Attendance(
-                    id=str(uuid.uuid4()),
-                    user_id=user.id,
-                    timestamp=datetime.now(timezone.utc).isoformat()
-                )
-                db.add(attendance)
-                await db.commit()
+                # Log attendance once per day
+                today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                existing_att_res = await db.execute(select(Attendance).where(Attendance.user_id == user.id, Attendance.date == today_str))
+                if not existing_att_res.scalar_one_or_none():
+                    attendance = Attendance(
+                        id=str(uuid.uuid4()),
+                        user_id=user.id,
+                        date=today_str,
+                        timestamp=datetime.now(timezone.utc).isoformat()
+                    )
+                    db.add(attendance)
+                    await db.commit()
 
     return {
         "id": user.id,
