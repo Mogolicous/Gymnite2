@@ -18,7 +18,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column, relationship
-from sqlalchemy import String, Boolean, Integer, Text, Float, ForeignKey, select, update, delete, func, DateTime, cast
+from sqlalchemy import String, Boolean, Integer, Text, Float, ForeignKey, select, update, delete, func, DateTime
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -969,11 +969,12 @@ async def check_in(user: User = Depends(get_current_user), db: AsyncSession = De
     
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     
-    # Check if already checked in today
-    result = await db.execute(select(Attendance).where(Attendance.user_id == user.id, cast(Attendance.timestamp, String).like(f"{today}%")))
-    existing = result.scalar_one_or_none()
+    # Check if already checked in today (Filtered in Python to avoid Postgres type mismatch errors)
+    result = await db.execute(select(Attendance).where(Attendance.user_id == user.id))
+    all_att = result.scalars().all()
+    already_logged = any(a.timestamp.startswith(today) for a in all_att)
     
-    if existing:
+    if already_logged:
         raise HTTPException(status_code=400, detail="Ya registraste tu asistencia hoy.")
         
     new_attendance = Attendance(
@@ -1405,10 +1406,14 @@ async def verify_access(rfidUid: str, db: AsyncSession = Depends(get_db)):
             if exp_date > datetime.now(timezone.utc):
                 status = "ACTIVE"
                 
-                # Log attendance once per day
+                # Log attendance once per day (Filtered in Python to avoid Postgres type mismatch errors)
                 today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-                existing_att_res = await db.execute(select(Attendance).where(Attendance.user_id == user.id, cast(Attendance.timestamp, String).like(f"{today_str}%")))
-                if not existing_att_res.scalar_one_or_none():
+                
+                all_att_res = await db.execute(select(Attendance).where(Attendance.user_id == user.id))
+                all_att = all_att_res.scalars().all()
+                already_logged = any(a.timestamp.startswith(today_str) for a in all_att)
+                
+                if not already_logged:
                     attendance = Attendance(
                         id=str(uuid.uuid4()),
                         user_id=user.id,
