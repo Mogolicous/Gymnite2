@@ -18,7 +18,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column, relationship
-from sqlalchemy import String, Boolean, Integer, Text, Float, ForeignKey, select, update, delete, func, DateTime
+from sqlalchemy import String, Boolean, Integer, Text, Float, ForeignKey, select, update, delete, func, DateTime, cast
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -970,7 +970,7 @@ async def check_in(user: User = Depends(get_current_user), db: AsyncSession = De
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     
     # Check if already checked in today
-    result = await db.execute(select(Attendance).where(Attendance.user_id == user.id, Attendance.timestamp.like(f"{today}%")))
+    result = await db.execute(select(Attendance).where(Attendance.user_id == user.id, cast(Attendance.timestamp, String).like(f"{today}%")))
     existing = result.scalar_one_or_none()
     
     if existing:
@@ -1407,7 +1407,7 @@ async def verify_access(rfidUid: str, db: AsyncSession = Depends(get_db)):
                 
                 # Log attendance once per day
                 today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-                existing_att_res = await db.execute(select(Attendance).where(Attendance.user_id == user.id, Attendance.timestamp.like(f"{today_str}%")))
+                existing_att_res = await db.execute(select(Attendance).where(Attendance.user_id == user.id, cast(Attendance.timestamp, String).like(f"{today_str}%")))
                 if not existing_att_res.scalar_one_or_none():
                     attendance = Attendance(
                         id=str(uuid.uuid4()),
