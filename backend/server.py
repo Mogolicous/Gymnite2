@@ -1431,7 +1431,7 @@ async def verify_access(rfidUid: str, db: AsyncSession = Depends(get_db)):
 
 @api_router.get("/admin/attendance-stats")
 async def get_attendance_stats(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    if user.role != "admin":
+    if not user.role or user.role.name != "admin":
         raise HTTPException(status_code=403, detail="No autorizado")
         
     res = await db.execute(select(Attendance))
