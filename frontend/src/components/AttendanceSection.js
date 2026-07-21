@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Calendar, CheckCircle2, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { Calendar, CheckCircle2, Loader2, Info } from "lucide-react";
 import api from "@/lib/api";
 
 export default function AttendanceSection() {
   const [loading, setLoading] = useState(true);
-  const [checkingIn, setCheckingIn] = useState(false);
   const [history, setHistory] = useState([]);
   
   const today = new Date();
@@ -24,19 +22,6 @@ export default function AttendanceSection() {
       console.error(err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCheckIn = async () => {
-    setCheckingIn(true);
-    try {
-      const { data } = await api.post("/attendance");
-      setHistory([data, ...history]);
-      toast.success("¡Asistencia registrada con éxito!");
-    } catch (err) {
-      toast.error(err.response?.data?.detail || "Error al registrar asistencia");
-    } finally {
-      setCheckingIn(false);
     }
   };
 
@@ -64,14 +49,10 @@ export default function AttendanceSection() {
           <Calendar className="h-5 w-5 text-purple-400" />
           <h3 className="text-xl font-semibold">Mi Asistencia</h3>
         </div>
-        <button
-          onClick={handleCheckIn}
-          disabled={checkingIn || hasCheckedInToday}
-          className="gn-btn-primary flex items-center gap-2 disabled:opacity-50 text-sm py-2 px-4"
-        >
-          {checkingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-          {hasCheckedInToday ? "Asistencia Confirmada" : "Confirmar Asistencia Hoy"}
-        </button>
+        <div className="flex items-center gap-2 text-xs text-zinc-400 bg-purple-500/10 border border-purple-500/20 px-3 py-1.5 rounded-full">
+          <Info className="h-3.5 w-3.5 text-purple-400" />
+          Se registra al pasar tu tarjeta en la entrada
+        </div>
       </div>
 
       <div className="bg-zinc-900/50 rounded-xl p-6 border border-zinc-800">
