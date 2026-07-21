@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Confetti from 'react-confetti';
 import { toast } from 'sonner';
 import api, { formatApiError } from '@/lib/api';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const HardwareConfig = ({ isActive = true }) => {
   const [mode, setMode] = useState('VALIDATION'); // 'VALIDATION' o 'ASSIGNMENT'
@@ -255,14 +256,28 @@ const HardwareConfig = ({ isActive = true }) => {
 
   return (
     <>
-      {statusScreen && (
-        <div className={`fixed inset-0 z-[9999] flex items-center justify-center ${bgColors[statusScreen.type]} transition-colors duration-300`}>
-          {showConfetti && <Confetti />}
-          <h1 className="text-white text-6xl font-bold text-center px-4 drop-shadow-md">
-            {statusScreen.message}
-          </h1>
-        </div>
-      )}
+      <AnimatePresence>
+        {statusScreen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className={`fixed inset-0 z-[9999] flex items-center justify-center ${bgColors[statusScreen.type]} transition-colors duration-300`}
+          >
+            {showConfetti && <Confetti />}
+            <motion.h1 
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.5, opacity: 0 }}
+              transition={{ type: "spring", duration: 0.5 }}
+              className="text-white text-6xl font-bold text-center px-4 drop-shadow-md"
+            >
+              {statusScreen.message}
+            </motion.h1>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div style={{ display: isActive ? 'block' : 'none' }}>
         <div className="max-w-2xl mx-auto p-8 bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl mt-4 mb-16">
