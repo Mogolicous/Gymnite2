@@ -1429,6 +1429,35 @@ async def verify_access(rfidUid: str, db: AsyncSession = Depends(get_db)):
         "membershipExpires": expires_at
     }
 
+@api_router.get("/admin/attendance-stats")
+async def get_attendance_stats(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+        
+    res = await db.execute(select(Attendance))
+    all_att = res.scalars().all()
+    
+    # Initialize hours from 06:00 to 22:00
+    stats_dict = {}
+    for i in range(6, 23):
+        stats_dict[f"{i:02d}:00"] = 0
+        
+    for att in all_att:
+        try:
+            # ISO timestamp: "2026-07-21T10:45:00Z"
+            hour_str = att.timestamp.split("T")[1][:2]
+            hour_int = int(hour_str)
+            # Only count hours within our gym hours (6 AM to 10 PM)
+            if 6 <= hour_int <= 22:
+                hour_key = f"{hour_int:02d}:00"
+                stats_dict[hour_key] += 1
+        except Exception:
+            pass
+            
+    # Format as array for Recharts
+    result = [{"time": k, "count": v} for k, v in stats_dict.items()]
+    return result
+
 # ----------------- Health -----------------
 @api_router.get("/")
 async def root():

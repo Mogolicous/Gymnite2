@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Loader2, CalendarDays, Users, Search } from "lucide-react";
+import { Loader2, CalendarDays, Users, Search, BarChart2 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { toast } from "sonner";
 import api from "@/lib/api";
 
@@ -13,6 +14,9 @@ export default function AdminReservations() {
   const [loading, setLoading] = useState(false);
   const [reservations, setReservations] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  
+  const [stats, setStats] = useState([]);
+  const [loadingStats, setLoadingStats] = useState(false);
 
   const fetchReservations = React.useCallback(async () => {
     setLoading(true);
@@ -28,9 +32,23 @@ export default function AdminReservations() {
     }
   }, [selectedDate]);
 
+  const fetchStats = React.useCallback(async () => {
+    setLoadingStats(true);
+    try {
+      const { data } = await api.get('/admin/attendance-stats');
+      setStats(data);
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al cargar estadísticas de asistencia");
+    } finally {
+      setLoadingStats(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchReservations();
-  }, [fetchReservations]);
+    fetchStats();
+  }, [fetchReservations, fetchStats]);
 
   const grouped = reservations.reduce((acc, r) => {
     if (!acc[r.shift]) acc[r.shift] = [];
@@ -123,6 +141,65 @@ export default function AdminReservations() {
           ))}
         </div>
       )}
+
+      {/* Attendance Stats Chart */}
+      <div className="gn-card p-6 mt-8">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="h-10 w-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+            <BarChart2 className="h-5 w-5 text-purple-400" />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-white">Horarios Más Concurridos</h3>
+            <p className="text-xs text-zinc-400 mt-0.5">Basado en todo el historial de tarjetas RFID</p>
+          </div>
+        </div>
+
+        {loadingStats ? (
+          <div className="h-[300px] flex items-center justify-center">
+            <Loader2 className="animate-spin text-purple-400 h-8 w-8" />
+          </div>
+        ) : stats.length === 0 ? (
+          <div className="h-[300px] flex items-center justify-center text-zinc-500 text-sm">
+            No hay datos suficientes para mostrar estadísticas.
+          </div>
+        ) : (
+          <div className="h-[350px] w-full mt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis 
+                  dataKey="time" 
+                  stroke="#71717a" 
+                  fontSize={12} 
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  stroke="#71717a" 
+                  fontSize={12} 
+                  tickLine={false}
+                  axisLine={false}
+                  allowDecimals={false}
+                />
+                <Tooltip 
+                  cursor={{ fill: '#27272a', opacity: 0.4 }}
+                  contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '12px' }}
+                  itemStyle={{ color: '#c084fc', fontWeight: 'bold' }}
+                  formatter={(value) => [`${value} ingresos`, 'Tráfico']}
+                  labelStyle={{ color: '#a1a1aa', marginBottom: '4px' }}
+                />
+                <Bar 
+                  dataKey="count" 
+                  fill="#9333ea" 
+                  radius={[4, 4, 0, 0]}
+                  barSize={32}
+                  activeBar={{ fill: '#a855f7' }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
